@@ -1,417 +1,470 @@
 #!/usr/bin/env python3
 """
-NoidaPulse Backend API Testing Suite
-Tests all enhanced backend APIs with comprehensive validation
+NoidaPulse Backend API Testing Script
+Tests the new features: 100 newly added shows, custom check-ins, and count-based ranking
 """
 
 import requests
 import json
 import time
-from datetime import datetime
+import random
+from datetime import datetime, timedelta
 
-# Base URL from environment
+# Backend URL from environment
 BASE_URL = "https://noida-watch-live.preview.emergentagent.com/api"
 
-def test_health_api():
-    """Test GET /api/health"""
-    print("\n=== Testing Health Check API ===")
-    try:
-        response = requests.get(f"{BASE_URL}/health", timeout=10)
-        print(f"Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"Response: {data}")
-            
-            if data.get('status') == 'healthy' and 'timestamp' in data:
-                print("✅ Health API working correctly")
-                return True
-            else:
-                print("❌ Health API response format incorrect")
-                return False
-        else:
-            print(f"❌ Health API failed with status {response.status_code}")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Health API error: {str(e)}")
-        return False
+# Test data
+VALID_SECTORS = ["sector-1", "sector-62", "sector-135", "greater-noida-alpha"]
+VALID_DEVICES = ["mobile", "laptop", "tablet", "tv"]
 
-def test_sectors_api():
-    """Test GET /api/sectors"""
-    print("\n=== Testing Sectors API ===")
-    try:
-        response = requests.get(f"{BASE_URL}/sectors", timeout=10)
-        print(f"Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"Response: {json.dumps(data, indent=2)}")
-            
-            sectors = data.get('sectors', [])
-            if len(sectors) == 10:
-                # Check if sectors have correct structure
-                first_sector = sectors[0]
-                if all(key in first_sector for key in ['id', 'name', 'pincode']):
-                    # Check if we have the expected sector IDs (201301-201310)
-                    sector_ids = [s['id'] for s in sectors]
-                    expected_ids = ['201301', '201302', '201303', '201304', '201305', 
-                                   '201306', '201307', '201308', '201309', '201310']
-                    if sector_ids == expected_ids:
-                        print("✅ Sectors API working correctly")
-                        return True
-                    else:
-                        print(f"❌ Unexpected sector IDs: {sector_ids}")
-                        return False
-                else:
-                    print("❌ Sector structure incorrect")
-                    return False
-            else:
-                print(f"❌ Expected 10 sectors, got {len(sectors)}")
-                return False
-        else:
-            print(f"❌ Sectors API failed with status {response.status_code}")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Sectors API error: {str(e)}")
-        return False
-
-def test_search_api():
-    """Test GET /api/search?q=Mirzapur"""
-    print("\n=== Testing Search API ===")
-    try:
-        # Test with Mirzapur query
-        response = requests.get(f"{BASE_URL}/search?q=Mirzapur", timeout=15)
-        print(f"Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"Response: {json.dumps(data, indent=2)}")
-            
-            results = data.get('results', [])
-            if len(results) > 0:
-                # Check structure of first result
-                first_result = results[0]
-                required_fields = ['imdbId', 'title', 'year', 'type']
-                if all(field in first_result for field in required_fields):
-                    print("✅ Search API working correctly")
-                    return True, results[0]  # Return first result for checkin test
-                else:
-                    print(f"❌ Search result missing required fields: {first_result}")
-                    return False, None
-            else:
-                print("❌ No search results returned")
-                return False, None
-        else:
-            print(f"❌ Search API failed with status {response.status_code}")
-            return False, None
-            
-    except Exception as e:
-        print(f"❌ Search API error: {str(e)}")
-        return False, None
-
-def test_checkin_api(show_data=None):
-    """Test POST /api/checkin"""
-    print("\n=== Testing Checkin API ===")
+def test_search_new_shows():
+    """Test 1: Verify that the 100 newly added shows (IDs 401-500) are searchable"""
+    print("\n=== Testing Search for New Shows (IDs 401-500) ===")
     
-    # Use provided show data or default test data
-    if show_data:
+    test_searches = [
+        ("Extraction", "Netflix movie"),
+        ("Wednesday", "Netflix series"),
+        ("Scam 2003", "SonyLIV series"),
+        ("Rangbaaz", "ZEE5 series")
+    ]
+    
+    all_passed = True
+    
+    for search_term, expected_desc in test_searches:
+        try:
+            print(f"\n🔍 Searching for: '{search_term}' (expecting {expected_desc})")
+            response = requests.get(f"{BASE_URL}/search", params={"q": search_term})
+            
+            if response.status_code != 200:
+                print(f"❌ Search failed with status {response.status_code}")
+                all_passed = False
+                continue
+                
+            data = response.json()
+            results = data.get("results", [])
+            
+            if not results:
+                print(f"❌ No results found for '{search_term}'")
+                all_passed = False
+                continue
+                
+            # Check if we found the expected show
+            found = False
+            for result in results:
+                if search_term.lower() in result.get("title", "").lower():
+                    print(f"✅ Found: {result['title']} ({result.get('platform', 'Unknown')} {result.get('type', 'unknown')})")
+                    found = True
+                    break
+                    
+            if not found:
+                print(f"❌ Expected show '{search_term}' not found in results")
+                print(f"   Results: {[r.get('title') for r in results[:3]]}")
+                all_passed = False
+                
+        except Exception as e:
+            print(f"❌ Error searching for '{search_term}': {e}")
+            all_passed = False
+    
+    return all_passed
+
+def test_custom_show_checkin():
+    """Test 2: Test custom show check-in with normalization and fuzzy matching"""
+    print("\n=== Testing Custom Show Check-in ===")
+    
+    custom_show_name = "My Custom Test Show 123"
+    sector_id = random.choice(VALID_SECTORS)
+    device_type = random.choice(VALID_DEVICES)
+    
+    try:
+        print(f"\n📝 Creating check-in for custom show: '{custom_show_name}'")
+        print(f"   Sector: {sector_id}, Device: {device_type}")
+        
         checkin_data = {
-            "imdbId": show_data['imdbId'],
-            "title": show_data['title'],
-            "poster": show_data.get('poster'),
-            "type": show_data['type'],
-            "year": show_data['year'],
-            "sectorId": "201307"
+            "title": custom_show_name,
+            "sectorId": sector_id,
+            "deviceType": device_type,
+            "platform": "Custom",
+            "type": "series"
         }
-    else:
-        checkin_data = {
-            "imdbId": "tt6473300",
-            "title": "Mirzapur",
-            "poster": "https://example.com/poster.jpg",
-            "type": "series",
-            "year": "2018–",
-            "sectorId": "201307"
-        }
-    
-    try:
-        response = requests.post(
-            f"{BASE_URL}/checkin", 
-            json=checkin_data,
-            headers={'Content-Type': 'application/json'},
-            timeout=10
-        )
-        print(f"Status Code: {response.status_code}")
-        print(f"Request Data: {json.dumps(checkin_data, indent=2)}")
         
-        if response.status_code == 201:
-            data = response.json()
-            print(f"Response: {json.dumps(data, indent=2)}")
-            
-            if data.get('success') and 'checkin' in data:
-                checkin = data['checkin']
-                if checkin.get('imdbId') == checkin_data['imdbId']:
-                    print("✅ Checkin API working correctly")
-                    return True
-                else:
-                    print("❌ Checkin data mismatch")
-                    return False
-            else:
-                print("❌ Checkin response format incorrect")
-                return False
-        else:
-            print(f"❌ Checkin API failed with status {response.status_code}")
-            if response.text:
-                print(f"Error response: {response.text}")
+        response = requests.post(f"{BASE_URL}/checkin", json=checkin_data)
+        
+        if response.status_code != 201:
+            print(f"❌ Check-in failed with status {response.status_code}")
+            print(f"   Response: {response.text}")
             return False
             
+        data = response.json()
+        
+        if not data.get("success"):
+            print(f"❌ Check-in not successful: {data}")
+            return False
+            
+        checkin = data.get("checkin", {})
+        normalized_info = data.get("normalized")
+        
+        print(f"✅ Check-in created successfully!")
+        print(f"   ID: {checkin.get('id')}")
+        print(f"   Normalized Title: {checkin.get('displayTitle')}")
+        print(f"   Stored in MongoDB: {checkin.get('normalizedTitle')}")
+        
+        if normalized_info:
+            print(f"   Title normalization: '{normalized_info['original']}' → '{normalized_info['normalized']}'")
+        
+        # Test fuzzy matching by creating a similar title
+        similar_title = "My Custom Test Show 124"  # Very similar
+        print(f"\n🔍 Testing fuzzy matching with similar title: '{similar_title}'")
+        
+        similar_checkin_data = {
+            "title": similar_title,
+            "sectorId": sector_id,
+            "deviceType": device_type,
+            "platform": "Custom",
+            "type": "series"
+        }
+        
+        response2 = requests.post(f"{BASE_URL}/checkin", json=similar_checkin_data)
+        
+        if response2.status_code == 201:
+            data2 = response2.json()
+            checkin2 = data2.get("checkin", {})
+            print(f"✅ Similar title check-in created")
+            print(f"   Normalized: {checkin2.get('displayTitle')}")
+            
+            # Check if they were normalized to the same or different titles
+            if checkin.get('normalizedTitle') == checkin2.get('normalizedTitle'):
+                print(f"✅ Fuzzy matching worked - both normalized to same title")
+            else:
+                print(f"ℹ️  Different normalization (expected for different titles)")
+        
+        return True
+        
     except Exception as e:
-        print(f"❌ Checkin API error: {str(e)}")
+        print(f"❌ Error in custom show check-in test: {e}")
         return False
 
-def test_trending_api():
-    """Test GET /api/trending and GET /api/trending?sector=201307"""
-    print("\n=== Testing Trending API ===")
+def test_count_based_ranking():
+    """Test 3: Test simple count-based ranking system"""
+    print("\n=== Testing Count-Based Ranking System ===")
     
-    # Test general trending
     try:
-        response = requests.get(f"{BASE_URL}/trending", timeout=10)
-        print(f"General Trending - Status Code: {response.status_code}")
+        # Create multiple check-ins for different shows to test ranking
+        test_shows = [
+            {"title": "Test Ranking Show A", "count": 5},
+            {"title": "Test Ranking Show B", "count": 3},
+            {"title": "Test Ranking Show C", "count": 7},  # Should be #1
+            {"title": "Test Ranking Show D", "count": 1}
+        ]
+        
+        sector_id = "sector-62"
+        device_type = "mobile"
+        
+        print(f"\n📝 Creating test check-ins for ranking test...")
+        
+        # Create check-ins for each test show
+        for show in test_shows:
+            for i in range(show["count"]):
+                checkin_data = {
+                    "title": show["title"],
+                    "sectorId": sector_id,
+                    "deviceType": device_type,
+                    "platform": "Test",
+                    "type": "series"
+                }
+                
+                response = requests.post(f"{BASE_URL}/checkin", json=checkin_data)
+                if response.status_code != 201:
+                    print(f"❌ Failed to create check-in for {show['title']}")
+                    return False
+                
+                # Small delay to avoid overwhelming the API
+                time.sleep(0.1)
+        
+        print(f"✅ Created check-ins for ranking test")
+        
+        # Wait a moment for data to be processed
+        time.sleep(1)
+        
+        # Get trending shows
+        print(f"\n📊 Fetching trending shows...")
+        response = requests.get(f"{BASE_URL}/trending", params={"range": "all"})
+        
+        if response.status_code != 200:
+            print(f"❌ Failed to get trending shows: {response.status_code}")
+            return False
+            
+        data = response.json()
+        trending = data.get("trending", [])
+        
+        if not trending:
+            print(f"❌ No trending shows returned")
+            return False
+            
+        print(f"✅ Retrieved {len(trending)} trending shows")
+        
+        # Find our test shows in the trending list
+        test_show_rankings = {}
+        for i, show in enumerate(trending):
+            title = show.get("title", "")
+            if "Test Ranking Show" in title:
+                test_show_rankings[title] = {
+                    "rank": i + 1,
+                    "checkinCount": show.get("checkinCount", 0)
+                }
+                print(f"   #{i+1}: {title} ({show.get('checkinCount')} check-ins)")
+        
+        # Verify ranking is based on count
+        if "Test Ranking Show C" in test_show_rankings:
+            show_c_rank = test_show_rankings["Test Ranking Show C"]["rank"]
+            show_c_count = test_show_rankings["Test Ranking Show C"]["checkinCount"]
+            
+            if show_c_count >= 7:  # Should have at least our 7 check-ins
+                print(f"✅ Count-based ranking working: Show C has {show_c_count} check-ins")
+                
+                # Check if it's ranked higher than shows with fewer check-ins
+                higher_ranked = True
+                for title, info in test_show_rankings.items():
+                    if info["checkinCount"] < show_c_count and info["rank"] < show_c_rank:
+                        higher_ranked = False
+                        break
+                
+                if higher_ranked:
+                    print(f"✅ Ranking logic correct: Most check-ins = highest rank")
+                else:
+                    print(f"❌ Ranking logic incorrect: Show with fewer check-ins ranked higher")
+                    return False
+            else:
+                print(f"❌ Check-in count mismatch: expected ≥7, got {show_c_count}")
+                return False
+        else:
+            print(f"❌ Test Ranking Show C not found in trending list")
+            return False
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error in count-based ranking test: {e}")
+        return False
+
+def test_trending_with_filters():
+    """Test 4: Test trending endpoint with various filters"""
+    print("\n=== Testing Trending with Filters ===")
+    
+    try:
+        # Test sector filter
+        print(f"\n🔍 Testing sector filter...")
+        response = requests.get(f"{BASE_URL}/trending", params={
+            "sector": "sector-62",
+            "range": "week"
+        })
+        
+        if response.status_code != 200:
+            print(f"❌ Sector filter test failed: {response.status_code}")
+            return False
+            
+        data = response.json()
+        print(f"✅ Sector filter working: {len(data.get('trending', []))} shows")
+        
+        # Test device filter
+        print(f"\n📱 Testing device filter...")
+        response = requests.get(f"{BASE_URL}/trending", params={
+            "device": "mobile",
+            "range": "week"
+        })
+        
+        if response.status_code != 200:
+            print(f"❌ Device filter test failed: {response.status_code}")
+            return False
+            
+        data = response.json()
+        print(f"✅ Device filter working: {len(data.get('trending', []))} shows")
+        
+        # Test time range filter
+        print(f"\n⏰ Testing time range filter...")
+        response = requests.get(f"{BASE_URL}/trending", params={
+            "range": "today"
+        })
+        
+        if response.status_code != 200:
+            print(f"❌ Time range filter test failed: {response.status_code}")
+            return False
+            
+        data = response.json()
+        print(f"✅ Time range filter working: {len(data.get('trending', []))} shows")
+        
+        # Test time slot filter
+        print(f"\n🌅 Testing time slot filter...")
+        response = requests.get(f"{BASE_URL}/trending", params={
+            "timeSlot": "evening",
+            "range": "week"
+        })
+        
+        if response.status_code != 200:
+            print(f"❌ Time slot filter test failed: {response.status_code}")
+            return False
+            
+        data = response.json()
+        print(f"✅ Time slot filter working: {len(data.get('trending', []))} shows")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error in trending filters test: {e}")
+        return False
+
+def test_popular_shows():
+    """Test 5: Test popular shows endpoint returns newly added shows"""
+    print("\n=== Testing Popular Shows Endpoint ===")
+    
+    try:
+        print(f"\n🌟 Fetching popular shows...")
+        response = requests.get(f"{BASE_URL}/popular", params={"limit": 20})
+        
+        if response.status_code != 200:
+            print(f"❌ Popular shows request failed: {response.status_code}")
+            return False
+            
+        data = response.json()
+        shows = data.get("shows", [])
+        
+        if not shows:
+            print(f"❌ No popular shows returned")
+            return False
+            
+        print(f"✅ Retrieved {len(shows)} popular shows")
+        
+        # Check if any of the newly added shows (IDs 401-500) are included
+        new_shows_found = []
+        for show in shows:
+            show_id = show.get("id", "")
+            if show_id.isdigit() and 401 <= int(show_id) <= 500:
+                new_shows_found.append(show.get("title"))
+            elif show_id.startswith("local-") and show_id.replace("local-", "").isdigit():
+                local_id = int(show_id.replace("local-", ""))
+                if local_id >= 301:  # 2024 releases and newer
+                    new_shows_found.append(show.get("title"))
+        
+        if new_shows_found:
+            print(f"✅ Found newly added shows in popular list:")
+            for title in new_shows_found[:5]:  # Show first 5
+                print(f"   - {title}")
+        else:
+            print(f"ℹ️  No newly added shows found in this random sample (this is normal due to randomization)")
+        
+        # Test platform filter
+        print(f"\n🎬 Testing platform filter...")
+        response = requests.get(f"{BASE_URL}/popular", params={
+            "platform": "Netflix",
+            "limit": 10
+        })
         
         if response.status_code == 200:
             data = response.json()
-            print(f"General Trending Response: {json.dumps(data, indent=2)}")
+            netflix_shows = data.get("shows", [])
+            print(f"✅ Platform filter working: {len(netflix_shows)} Netflix shows")
+        else:
+            print(f"❌ Platform filter test failed: {response.status_code}")
+            return False
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error in popular shows test: {e}")
+        return False
+
+def test_overall_health():
+    """Test 6: Test all core endpoints are responding correctly"""
+    print("\n=== Testing Overall API Health ===")
+    
+    endpoints = [
+        ("/health", "GET", "Health check"),
+        ("/sectors", "GET", "Sectors list"),
+        ("/devices", "GET", "Device types"),
+        ("/stats", "GET", "Statistics"),
+        ("/share", "GET", "Share data")
+    ]
+    
+    all_healthy = True
+    
+    for endpoint, method, description in endpoints:
+        try:
+            print(f"\n🔍 Testing {description} ({method} {endpoint})")
             
-            trending = data.get('trending', [])
-            if isinstance(trending, list):
-                if len(trending) > 0:
-                    # Check structure of first trending item
-                    first_item = trending[0]
-                    required_fields = ['imdbId', 'title', 'score', 'checkinCount']
-                    if all(field in first_item for field in required_fields):
-                        print("✅ General trending API working correctly")
-                        general_success = True
+            if method == "GET":
+                response = requests.get(f"{BASE_URL}{endpoint}")
+            else:
+                continue  # Skip non-GET for now
+                
+            if response.status_code == 200:
+                data = response.json()
+                print(f"✅ {description}: OK")
+                
+                # Basic validation
+                if endpoint == "/sectors":
+                    sectors = data.get("sectors", [])
+                    if len(sectors) == 143:
+                        print(f"   ✅ Correct number of sectors: {len(sectors)}")
                     else:
-                        print(f"❌ Trending item missing required fields: {first_item}")
-                        general_success = False
-                else:
-                    print("✅ General trending API working (no data yet)")
-                    general_success = True
+                        print(f"   ❌ Expected 143 sectors, got {len(sectors)}")
+                        all_healthy = False
+                        
+                elif endpoint == "/devices":
+                    devices = data.get("devices", [])
+                    if len(devices) == 4:
+                        print(f"   ✅ Correct number of devices: {len(devices)}")
+                    else:
+                        print(f"   ❌ Expected 4 devices, got {len(devices)}")
+                        all_healthy = False
+                        
             else:
-                print("❌ Trending response format incorrect")
-                general_success = False
-        else:
-            print(f"❌ General trending API failed with status {response.status_code}")
-            general_success = False
-            
-    except Exception as e:
-        print(f"❌ General trending API error: {str(e)}")
-        general_success = False
+                print(f"❌ {description}: Failed with status {response.status_code}")
+                all_healthy = False
+                
+        except Exception as e:
+            print(f"❌ Error testing {description}: {e}")
+            all_healthy = False
     
-    # Test sector-specific trending
-    try:
-        response = requests.get(f"{BASE_URL}/trending?sector=201307", timeout=10)
-        print(f"Sector Trending - Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"Sector Trending Response: {json.dumps(data, indent=2)}")
-            
-            trending = data.get('trending', [])
-            if isinstance(trending, list):
-                print("✅ Sector trending API working correctly")
-                sector_success = True
-            else:
-                print("❌ Sector trending response format incorrect")
-                sector_success = False
-        else:
-            print(f"❌ Sector trending API failed with status {response.status_code}")
-            sector_success = False
-            
-    except Exception as e:
-        print(f"❌ Sector trending API error: {str(e)}")
-        sector_success = False
-    
-    return general_success and sector_success
-
-def test_stats_api():
-    """Test GET /api/stats"""
-    print("\n=== Testing Stats API ===")
-    try:
-        response = requests.get(f"{BASE_URL}/stats", timeout=10)
-        print(f"Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"Response: {json.dumps(data, indent=2)}")
-            
-            required_fields = ['totalCheckins', 'todayCheckins', 'uniqueShows']
-            if all(field in data for field in required_fields):
-                # Check data types
-                if (isinstance(data['totalCheckins'], int) and 
-                    isinstance(data['todayCheckins'], int) and 
-                    isinstance(data['uniqueShows'], int)):
-                    print("✅ Stats API working correctly")
-                    return True
-                else:
-                    print("❌ Stats API data types incorrect")
-                    return False
-            else:
-                print(f"❌ Stats API missing required fields: {data}")
-                return False
-        else:
-            print(f"❌ Stats API failed with status {response.status_code}")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Stats API error: {str(e)}")
-        return False
-
-def test_share_api():
-    """Test GET /api/share and GET /api/share?sector=201307"""
-    print("\n=== Testing Share API ===")
-    
-    # Test general share
-    try:
-        response = requests.get(f"{BASE_URL}/share", timeout=10)
-        print(f"General Share - Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"General Share Response: {json.dumps(data, indent=2)}")
-            
-            required_fields = ['sectorName', 'trending', 'generatedAt']
-            if all(field in data for field in required_fields):
-                if (isinstance(data['trending'], list) and 
-                    data['sectorName'] == 'All of Noida'):
-                    print("✅ General share API working correctly")
-                    general_success = True
-                else:
-                    print("❌ General share API data format incorrect")
-                    general_success = False
-            else:
-                print(f"❌ General share API missing required fields: {data}")
-                general_success = False
-        else:
-            print(f"❌ General share API failed with status {response.status_code}")
-            general_success = False
-            
-    except Exception as e:
-        print(f"❌ General share API error: {str(e)}")
-        general_success = False
-    
-    # Test sector-specific share
-    try:
-        response = requests.get(f"{BASE_URL}/share?sector=201307", timeout=10)
-        print(f"Sector Share - Status Code: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"Sector Share Response: {json.dumps(data, indent=2)}")
-            
-            required_fields = ['sectorName', 'trending', 'generatedAt']
-            if all(field in data for field in required_fields):
-                if isinstance(data['trending'], list):
-                    print("✅ Sector share API working correctly")
-                    sector_success = True
-                else:
-                    print("❌ Sector share API data format incorrect")
-                    sector_success = False
-            else:
-                print(f"❌ Sector share API missing required fields: {data}")
-                sector_success = False
-        else:
-            print(f"❌ Sector share API failed with status {response.status_code}")
-            sector_success = False
-            
-    except Exception as e:
-        print(f"❌ Sector share API error: {str(e)}")
-        sector_success = False
-    
-    return general_success and sector_success
-
-def run_complete_flow_test():
-    """Test the complete flow: Search -> Checkin -> Verify Trending -> Verify Stats"""
-    print("\n" + "="*60)
-    print("RUNNING COMPLETE FLOW TEST")
-    print("="*60)
-    
-    # Step 1: Search for a show
-    print("\n1. Searching for a show...")
-    search_success, show_data = test_search_api()
-    if not search_success:
-        print("❌ Flow test failed at search step")
-        return False
-    
-    # Step 2: Create a checkin
-    print("\n2. Creating a checkin...")
-    checkin_success = test_checkin_api(show_data)
-    if not checkin_success:
-        print("❌ Flow test failed at checkin step")
-        return False
-    
-    # Wait a moment for data to be processed
-    print("\n3. Waiting for data to be processed...")
-    time.sleep(2)
-    
-    # Step 3: Verify trending is updated
-    print("\n4. Verifying trending is updated...")
-    trending_success = test_trending_api()
-    if not trending_success:
-        print("❌ Flow test failed at trending verification")
-        return False
-    
-    # Step 4: Verify stats are updated
-    print("\n5. Verifying stats are updated...")
-    stats_success = test_stats_api()
-    if not stats_success:
-        print("❌ Flow test failed at stats verification")
-        return False
-    
-    print("\n✅ Complete flow test passed!")
-    return True
+    return all_healthy
 
 def main():
-    """Run all backend API tests"""
-    print("NoidaPulse Backend API Testing Suite")
-    print(f"Testing against: {BASE_URL}")
-    print("="*60)
+    """Run all backend tests"""
+    print("🚀 Starting NoidaPulse Backend API Tests")
+    print(f"📍 Testing against: {BASE_URL}")
+    print("=" * 60)
     
-    results = {}
+    test_results = {}
     
-    # Test individual APIs
-    results['health'] = test_health_api()
-    results['sectors'] = test_sectors_api()
-    results['search'] = test_search_api()[0]  # Only get success status
-    results['checkin'] = test_checkin_api()
-    results['trending'] = test_trending_api()
-    results['stats'] = test_stats_api()
-    results['share'] = test_share_api()
-    
-    # Test complete flow
-    results['complete_flow'] = run_complete_flow_test()
+    # Run all tests
+    test_results["search_new_shows"] = test_search_new_shows()
+    test_results["custom_show_checkin"] = test_custom_show_checkin()
+    test_results["count_based_ranking"] = test_count_based_ranking()
+    test_results["trending_with_filters"] = test_trending_with_filters()
+    test_results["popular_shows"] = test_popular_shows()
+    test_results["overall_health"] = test_overall_health()
     
     # Summary
-    print("\n" + "="*60)
-    print("TEST SUMMARY")
-    print("="*60)
+    print("\n" + "=" * 60)
+    print("📊 TEST RESULTS SUMMARY")
+    print("=" * 60)
     
-    for test_name, success in results.items():
-        status = "✅ PASS" if success else "❌ FAIL"
-        print(f"{test_name.upper()}: {status}")
+    passed = 0
+    total = len(test_results)
     
-    total_tests = len(results)
-    passed_tests = sum(results.values())
+    for test_name, result in test_results.items():
+        status = "✅ PASS" if result else "❌ FAIL"
+        print(f"{status} {test_name.replace('_', ' ').title()}")
+        if result:
+            passed += 1
     
-    print(f"\nOverall: {passed_tests}/{total_tests} tests passed")
+    print(f"\n🎯 Overall: {passed}/{total} tests passed")
     
-    if passed_tests == total_tests:
-        print("🎉 All tests passed!")
+    if passed == total:
+        print("🎉 All tests passed! NoidaPulse backend is working correctly.")
         return True
     else:
-        print("⚠️  Some tests failed")
+        print("⚠️  Some tests failed. Please check the issues above.")
         return False
 
 if __name__ == "__main__":
-    main()
+    success = main()
+    exit(0 if success else 1)

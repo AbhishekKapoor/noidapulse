@@ -762,6 +762,28 @@ export default function HomePage() {
                     </div>
                   )}
 
+                  {/* No Results - Allow Custom Entry */}
+                  {searchQuery.length >= 2 && searchResults.length === 0 && !selectedShow && !searching && (
+                    <div className="mt-2 p-4 rounded-lg border border-gray-700 bg-gray-800">
+                      <p className="text-sm text-gray-400 mb-3">
+                        No results found for &quot;{searchQuery}&quot;
+                      </p>
+                      <button
+                        onClick={() => {
+                          setSelectedShow({
+                            showId: `custom-${Date.now()}`,
+                            title: searchQuery,
+                            type: 'movie',
+                            platform: 'Various',
+                          });
+                        }}
+                        className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium"
+                      >
+                        ✨ Continue with &quot;{searchQuery}&quot;
+                      </button>
+                    </div>
+                  )}
+
                   {/* Popular Shows */}
                   {!selectedShow && searchQuery.length < 2 && popularShows.length > 0 && (
                     <div className="mt-3">

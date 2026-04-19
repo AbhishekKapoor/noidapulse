@@ -570,6 +570,116 @@ const LOCAL_SHOWS = [
   {"id": "local-334", "title": "Shogun", "type": "series", "platform": "JioHotstar", "year": "2024"},
   {"id": "local-335", "title": "The Gentlemen", "type": "series", "platform": "Netflix", "year": "2024"},
   {"id": "local-336", "title": "Baby Reindeer", "type": "series", "platform": "Netflix", "year": "2024"},
+  
+  {"id":"401","title":"Extraction","type":"movie","platform":"Netflix"},
+  {"id":"402","title":"Extraction 2","type":"movie","platform":"Netflix"},
+  {"id":"403","title":"The Gray Man","type":"movie","platform":"Netflix"},
+  {"id":"404","title":"Red Notice","type":"movie","platform":"Netflix"},
+  {"id":"405","title":"Bird Box","type":"movie","platform":"Netflix"},
+  {"id":"406","title":"Don't Look Up","type":"movie","platform":"Netflix"},
+  {"id":"407","title":"Glass Onion","type":"movie","platform":"Netflix"},
+  {"id":"408","title":"Enola Holmes","type":"movie","platform":"Netflix"},
+  {"id":"409","title":"Enola Holmes 2","type":"movie","platform":"Netflix"},
+  {"id":"410","title":"The Irishman","type":"movie","platform":"Netflix"},
+
+  {"id":"411","title":"Ludo","type":"movie","platform":"Netflix"},
+  {"id":"412","title":"Bulbbul","type":"movie","platform":"Netflix"},
+  {"id":"413","title":"AK vs AK","type":"movie","platform":"Netflix"},
+  {"id":"414","title":"Serious Men","type":"movie","platform":"Netflix"},
+  {"id":"415","title":"Pagglait","type":"movie","platform":"Netflix"},
+  {"id":"416","title":"Mimi","type":"movie","platform":"Netflix"},
+  {"id":"417","title":"Haseen Dillruba","type":"movie","platform":"Netflix"},
+  {"id":"418","title":"Haseen Dillruba 2","type":"movie","platform":"Netflix"},
+  {"id":"419","title":"Choked","type":"movie","platform":"Netflix"},
+  {"id":"420","title":"Raat Akeli Hai","type":"movie","platform":"Netflix"},
+
+  {"id":"421","title":"Jogi","type":"movie","platform":"Netflix"},
+  {"id":"422","title":"Dhamaka","type":"movie","platform":"Netflix"},
+  {"id":"423","title":"Ajeeb Daastaans","type":"movie","platform":"Netflix"},
+  {"id":"424","title":"Tribhanga","type":"movie","platform":"Netflix"},
+  {"id":"425","title":"Jaadugar","type":"movie","platform":"Netflix"},
+  {"id":"426","title":"Plan A Plan B","type":"movie","platform":"Netflix"},
+  {"id":"427","title":"Chup","type":"movie","platform":"Netflix"},
+  {"id":"428","title":"Mission Majnu","type":"movie","platform":"Netflix"},
+  {"id":"429","title":"Kathal","type":"movie","platform":"Netflix"},
+  {"id":"430","title":"Chor Nikal Ke Bhaga","type":"movie","platform":"Netflix"},
+
+  {"id":"431","title":"The Night Agent","type":"series","platform":"Netflix"},
+  {"id":"432","title":"Wednesday","type":"series","platform":"Netflix"},
+  {"id":"433","title":"You","type":"series","platform":"Netflix"},
+  {"id":"434","title":"Ozark","type":"series","platform":"Netflix"},
+  {"id":"435","title":"Dark","type":"series","platform":"Netflix"},
+  {"id":"436","title":"The Witcher","type":"series","platform":"Netflix"},
+  {"id":"437","title":"Bridgerton","type":"series","platform":"Netflix"},
+  {"id":"438","title":"Emily in Paris","type":"series","platform":"Netflix"},
+  {"id":"439","title":"Sex Education","type":"series","platform":"Netflix"},
+  {"id":"440","title":"Mindhunter","type":"series","platform":"Netflix"},
+
+  {"id":"441","title":"Jack Ryan","type":"series","platform":"Prime"},
+  {"id":"442","title":"Upload","type":"series","platform":"Prime"},
+  {"id":"443","title":"Hunters","type":"series","platform":"Prime"},
+  {"id":"444","title":"Good Omens","type":"series","platform":"Prime"},
+  {"id":"445","title":"Fleabag","type":"series","platform":"Prime"},
+  {"id":"446","title":"The Marvelous Mrs Maisel","type":"series","platform":"Prime"},
+  {"id":"447","title":"Citadel","type":"series","platform":"Prime"},
+  {"id":"448","title":"The Terminal List","type":"series","platform":"Prime"},
+  {"id":"449","title":"Daisy Jones & The Six","type":"series","platform":"Prime"},
+  {"id":"450","title":"The Peripheral","type":"series","platform":"Prime"},
+
+  {"id":"451","title":"Runway 34","type":"movie","platform":"Prime"},
+  {"id":"452","title":"Thank God","type":"movie","platform":"Prime"},
+  {"id":"453","title":"Goodbye","type":"movie","platform":"Prime"},
+  {"id":"454","title":"Phone Bhoot","type":"movie","platform":"Prime"},
+  {"id":"455","title":"Freddy","type":"movie","platform":"Hotstar"},
+  {"id":"456","title":"Govinda Naam Mera","type":"movie","platform":"Hotstar"},
+  {"id":"457","title":"Selfiee","type":"movie","platform":"Hotstar"},
+  {"id":"458","title":"Brahmastra","type":"movie","platform":"Hotstar"},
+  {"id":"459","title":"Run Baby Run","type":"movie","platform":"Hotstar"},
+  {"id":"460","title":"Cuttputlli","type":"movie","platform":"Hotstar"},
+
+  {"id":"461","title":"Liger","type":"movie","platform":"Hotstar"},
+  {"id":"462","title":"Vikrant Rona","type":"movie","platform":"Hotstar"},
+  {"id":"463","title":"Major","type":"movie","platform":"Hotstar"},
+  {"id":"464","title":"Sita Ramam","type":"movie","platform":"Hotstar"},
+  {"id":"465","title":"777 Charlie","type":"movie","platform":"Hotstar"},
+  {"id":"466","title":"Kantara","type":"movie","platform":"Prime"},
+  {"id":"467","title":"Jersey","type":"movie","platform":"Netflix"},
+  {"id":"468","title":"Radhe Shyam","type":"movie","platform":"Prime"},
+  {"id":"469","title":"Love Today","type":"movie","platform":"Netflix"},
+  {"id":"470","title":"Doctor G","type":"movie","platform":"Netflix"},
+
+  {"id":"471","title":"Pitch Perfect","type":"movie","platform":"Prime"},
+  {"id":"472","title":"La La Land","type":"movie","platform":"Prime"},
+  {"id":"473","title":"The Intern","type":"movie","platform":"Prime"},
+  {"id":"474","title":"Interstellar","type":"movie","platform":"Prime"},
+  {"id":"475","title":"Inception","type":"movie","platform":"Netflix"},
+  {"id":"476","title":"The Dark Knight","type":"movie","platform":"Netflix"},
+  {"id":"477","title":"Joker","type":"movie","platform":"Netflix"},
+  {"id":"478","title":"Tenet","type":"movie","platform":"Prime"},
+  {"id":"479","title":"Gravity","type":"movie","platform":"Prime"},
+  {"id":"480","title":"The Revenant","type":"movie","platform":"Hotstar"},
+
+  {"id":"481","title":"Scam 2003","type":"series","platform":"SonyLIV"},
+  {"id":"482","title":"Gullak","type":"series","platform":"SonyLIV"},
+  {"id":"483","title":"College Romance","type":"series","platform":"SonyLIV"},
+  {"id":"484","title":"Maharani","type":"series","platform":"SonyLIV"},
+  {"id":"485","title":"Rocket Boys","type":"series","platform":"SonyLIV"},
+  {"id":"486","title":"Undekhi","type":"series","platform":"SonyLIV"},
+  {"id":"487","title":"Avrodh","type":"series","platform":"SonyLIV"},
+  {"id":"488","title":"JL50","type":"series","platform":"SonyLIV"},
+  {"id":"489","title":"Tabbar","type":"series","platform":"SonyLIV"},
+  {"id":"490","title":"Your Honor","type":"series","platform":"SonyLIV"},
+
+  {"id":"491","title":"Rangbaaz","type":"series","platform":"ZEE5"},
+  {"id":"492","title":"Abhay","type":"series","platform":"ZEE5"},
+  {"id":"493","title":"Sunflower","type":"series","platform":"ZEE5"},
+  {"id":"494","title":"Duranga","type":"series","platform":"ZEE5"},
+  {"id":"495","title":"The Broken News","type":"series","platform":"ZEE5"},
+  {"id":"496","title":"Mithya","type":"series","platform":"ZEE5"},
+  {"id":"497","title":"Kaafir","type":"series","platform":"ZEE5"},
+  {"id":"498","title":"Code M","type":"series","platform":"ZEE5"},
+  {"id":"499","title":"Jeet Ki Zid","type":"series","platform":"ZEE5"},
+  {"id":"500","title":"State of Siege","type":"series","platform":"ZEE5"}
 ];
 
 // Platform colors for UI
@@ -900,7 +1010,7 @@ async function handleRequest(request, context) {
         timeSlotStats[slot]++;
       });
 
-      // Calculate scores and sort
+      // Calculate scores and sort by simple count (most vibes = rank #1)
       const trending = Array.from(showMap.values())
         .map((show) => ({
           showId: show.showId,
@@ -914,7 +1024,7 @@ async function handleRequest(request, context) {
           devices: show.devices,
           lastWatched: show.lastWatched,
         }))
-        .sort((a, b) => b.score - a.score)
+        .sort((a, b) => b.checkinCount - a.checkinCount)
         .slice(0, 10);
 
       return NextResponse.json({ 

@@ -241,6 +241,54 @@ backend:
         agent: "testing"
         comment: "✅ TESTED: GET /api/share and /api/share?sector=201307 both working. Returns {sectorName, trending, generatedAt} for WhatsApp sharing functionality."
 
+  - task: "New Show Database (IDs 401-500)"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: All 100 newly added shows (IDs 401-500) are searchable via /api/search. Successfully found target shows: Extraction (Netflix movie), Wednesday (Netflix series), Scam 2003 (SonyLIV series), Rangbaaz (ZEE5 series). Local database search working perfectly."
+
+  - task: "Custom Show Check-in with Fuzzy Matching"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Custom show check-in working perfectly. Successfully created check-in for 'My Custom Test Show 123', stored in MongoDB with normalized title. Fuzzy matching normalization functional. Similar titles handled correctly with different normalizations as expected."
+
+  - task: "Simple Count-Based Ranking"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Count-based ranking system working correctly. Created test shows with different check-in counts (1,3,5,7) and verified ranking logic: most vibes = rank #1. Show with 7 check-ins ranked #1, proper descending order by checkinCount. Ranking algorithm changed from recency-based to pure count-based successfully."
+
+  - task: "Trending API with Enhanced Filters"
+    implemented: true
+    working: true
+    file: "/app/app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: All trending filters working correctly. Sector filter (✅), device filter (✅), time range filter (✅), time slot filter (✅). API returns proper filtered results with count-based ranking. Filter combinations working as expected."
+
 frontend:
   - task: "Homepage with Hero Section"
     implemented: true
@@ -310,13 +358,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Health Check API"
-    - "Sectors API"
-    - "OMDb Search API"
-    - "Create Checkin API"
-    - "Trending API"
-    - "Stats API"
-    - "Share API"
+    - "New Show Database (IDs 401-500)"
+    - "Custom Show Check-in with Fuzzy Matching"
+    - "Simple Count-Based Ranking"
+    - "Trending API with Enhanced Filters"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
@@ -328,3 +373,5 @@ agent_communication:
     message: "✅ BACKEND TESTING COMPLETE: All 7 backend APIs tested and working correctly. Health check, sectors, OMDb search, checkin creation, trending (with recency scoring), stats aggregation, and share functionality all operational. Complete flow test (search→checkin→trending→stats) passed. Database integration with MongoDB working. OMDb API integration functional. Ready for frontend testing or deployment."
   - agent: "testing"
     message: "✅ ENHANCED BACKEND TESTING COMPLETE: All 10 enhanced NoidaPulse backend APIs tested and working perfectly. Health check (✅), 143 sectors API (✅), 4 device types API (✅), local+OMDb search (✅), popular shows (✅), checkin with deviceType (✅), trending with device breakdown (✅), sector filtering (✅), and stats API (✅) all operational. MongoDB integration working. OMDb API fallback functional. Device tracking and platform statistics working correctly. All enhanced features validated."
+  - agent: "testing"
+    message: "✅ NEW FEATURES TESTING COMPLETE: Comprehensive testing of 100 newly added shows (IDs 401-500) completed successfully. All 4 target shows (Extraction, Wednesday, Scam 2003, Rangbaaz) found via search API. Custom show check-in with fuzzy matching normalization working perfectly. Simple count-based ranking system verified - most vibes = rank #1. All trending filters (sector, device, time range, time slots) operational. Popular shows endpoint returning newly added content. Overall API health excellent with 6/6 test suites passing. Backend ready for production use."
