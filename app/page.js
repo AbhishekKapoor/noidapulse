@@ -18,6 +18,7 @@ const PLATFORM_COLORS = {
   'SonyLIV': 'bg-gray-800',
   'ZEE5': 'bg-purple-600',
   'YouTube': 'bg-red-500',
+  'MX Player': 'bg-blue-800',
   'Various': 'bg-gray-600',
 };
 
