@@ -49,8 +49,17 @@ const TIME_SLOTS = [
   { id: 'morning', name: 'Morning (6AM-12PM)', icon: '🌅' },
   { id: 'afternoon', name: 'Afternoon (12PM-5PM)', icon: '☀️' },
   { id: 'evening', name: 'Evening (5PM-9PM)', icon: '🌆' },
-  { id: 'night', name: 'Night (9PM-6AM)', icon: '🌙' },
+  { id: 'night', name: 'Night (9PM-12AM)', icon: '🌙' },
+  { id: 'latenight', name: 'Late Night (12AM-3AM)', icon: '🌃' },
+  { id: 'earlymorning', name: 'Early Morning (3AM-6AM)', icon: '🌄' },
+  { id: 'custom', name: 'Custom Time Range', icon: '⚙️' },
 ];
+
+// Hour options for custom time picker
+const HOURS = Array.from({ length: 24 }, (_, i) => ({
+  value: i,
+  label: i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`,
+}));
 
 // Season options
 const SEASONS = [
@@ -95,7 +104,8 @@ export default function HomePage() {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [timeFromHour, setTimeFromHour] = useState('');
+  const [timeToHour, setTimeToHour] = useState('');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [trendStats, setTrendStats] = useState(null);
@@ -139,7 +149,10 @@ export default function HomePage() {
       }
       
       // Handle time slot
-      if (selectedTimeSlot && selectedTimeSlot !== 'all') {
+      if (selectedTimeSlot === 'custom' && timeFromHour !== '' && timeToHour !== '') {
+        params.append('timeFrom', timeFromHour);
+        params.append('timeTo', timeToHour);
+      } else if (selectedTimeSlot && selectedTimeSlot !== 'all' && selectedTimeSlot !== 'custom') {
         params.append('timeSlot', selectedTimeSlot);
       }
       
@@ -153,7 +166,7 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedSector, selectedTimeRange, selectedTimeSlot, dateFrom, dateTo]);
+  }, [selectedSector, selectedTimeRange, selectedTimeSlot, dateFrom, dateTo, timeFromHour, timeToHour]);
 
   const fetchSectors = async () => {
     try {
@@ -459,8 +472,14 @@ export default function HomePage() {
             {/* Time Slot Filter */}
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-orange-400 flex-shrink-0" />
-              <Select value={selectedTimeSlot} onValueChange={setSelectedTimeSlot}>
-                <SelectTrigger className="w-[150px] bg-gray-900/50 border-gray-700 text-white">
+              <Select value={selectedTimeSlot} onValueChange={(val) => {
+                setSelectedTimeSlot(val);
+                if (val !== 'custom') {
+                  setTimeFromHour('');
+                  setTimeToHour('');
+                }
+              }}>
+                <SelectTrigger className="w-[180px] bg-gray-900/50 border-gray-700 text-white">
                   <SelectValue placeholder="All Day" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-gray-700">
@@ -472,6 +491,33 @@ export default function HomePage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Custom Time Range */}
+            {selectedTimeSlot === 'custom' && (
+              <div className="flex items-center gap-2">
+                <select
+                  value={timeFromHour}
+                  onChange={(e) => setTimeFromHour(e.target.value)}
+                  className="px-2 py-1.5 text-sm bg-gray-800 border border-gray-700 rounded text-white"
+                >
+                  <option value="">From</option>
+                  {HOURS.map((h) => (
+                    <option key={h.value} value={h.value}>{h.label}</option>
+                  ))}
+                </select>
+                <span className="text-gray-500">to</span>
+                <select
+                  value={timeToHour}
+                  onChange={(e) => setTimeToHour(e.target.value)}
+                  className="px-2 py-1.5 text-sm bg-gray-800 border border-gray-700 rounded text-white"
+                >
+                  <option value="">To</option>
+                  {HOURS.map((h) => (
+                    <option key={h.value} value={h.value}>{h.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           <Button 
             variant="outline" 

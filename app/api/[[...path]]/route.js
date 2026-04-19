@@ -515,7 +515,9 @@ const TIME_SLOTS = [
   { id: 'morning', name: 'Morning', startHour: 6, endHour: 12, icon: '🌅' },
   { id: 'afternoon', name: 'Afternoon', startHour: 12, endHour: 17, icon: '☀️' },
   { id: 'evening', name: 'Evening', startHour: 17, endHour: 21, icon: '🌆' },
-  { id: 'night', name: 'Night', startHour: 21, endHour: 6, icon: '🌙' },
+  { id: 'night', name: 'Night', startHour: 21, endHour: 24, icon: '🌙' },
+  { id: 'latenight', name: 'Late Night', startHour: 0, endHour: 3, icon: '🌃' },
+  { id: 'earlymorning', name: 'Early Morning', startHour: 3, endHour: 6, icon: '🌄' },
 ];
 
 // Get time slot from hour
@@ -523,7 +525,9 @@ function getTimeSlot(hour) {
   if (hour >= 6 && hour < 12) return 'morning';
   if (hour >= 12 && hour < 17) return 'afternoon';
   if (hour >= 17 && hour < 21) return 'evening';
-  return 'night';
+  if (hour >= 21 && hour < 24) return 'night';
+  if (hour >= 0 && hour < 3) return 'latenight';
+  return 'earlymorning';
 }
 
 // Check if hour is in time slot
@@ -531,10 +535,20 @@ function isInTimeSlot(hour, slotId) {
   const slot = TIME_SLOTS.find(s => s.id === slotId);
   if (!slot) return true;
   
-  if (slot.id === 'night') {
-    return hour >= 21 || hour < 6;
+  if (slot.startHour < slot.endHour) {
+    return hour >= slot.startHour && hour < slot.endHour;
   }
-  return hour >= slot.startHour && hour < slot.endHour;
+  return false;
+}
+
+// Check if hour is in custom time range
+function isInCustomTimeRange(hour, startHour, endHour) {
+  if (startHour <= endHour) {
+    return hour >= startHour && hour < endHour;
+  } else {
+    // Wraps around midnight (e.g., 22:00 to 02:00)
+    return hour >= startHour || hour < endHour;
+  }
 }
 
 // Calculate trend score with recency boost
@@ -688,7 +702,9 @@ async function handleRequest(request, context) {
       const dateFrom = searchParams.get('from'); // ISO date string or YYYY-MM-DD
       const dateTo = searchParams.get('to'); // ISO date string or YYYY-MM-DD
       const timeRange = searchParams.get('range'); // 'today', 'week', 'month', 'all'
-      const timeSlot = searchParams.get('timeSlot'); // 'morning', 'afternoon', 'evening', 'night'
+      const timeSlot = searchParams.get('timeSlot'); // 'morning', 'afternoon', 'evening', 'night', 'latenight', 'earlymorning'
+      const timeFromHour = searchParams.get('timeFrom'); // Custom time start hour (0-23)
+      const timeToHour = searchParams.get('timeTo'); // Custom time end hour (0-23)
 
       const { db } = await connectToDatabase();
       const checkinsCollection = db.collection('checkins');
@@ -741,12 +757,24 @@ async function handleRequest(request, context) {
           return isInTimeSlot(hour, timeSlot);
         });
       }
+      
+      // Filter by custom time range if specified
+      if (timeFromHour !== null && timeToHour !== null) {
+        const fromH = parseInt(timeFromHour);
+        const toH = parseInt(timeToHour);
+        if (!isNaN(fromH) && !isNaN(toH)) {
+          checkins = checkins.filter(checkin => {
+            const hour = new Date(checkin.createdAt).getHours();
+            return isInCustomTimeRange(hour, fromH, toH);
+          });
+        }
+      }
 
       // Group by normalizedTitle (to merge same shows with different spellings)
       const showMap = new Map();
       const deviceStats = { mobile: 0, laptop: 0, tablet: 0, tv: 0 };
       const platformStats = {};
-      const timeSlotStats = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+      const timeSlotStats = { morning: 0, afternoon: 0, evening: 0, night: 0, latenight: 0, earlymorning: 0 };
       
       checkins.forEach((checkin) => {
         // Use normalizedTitle as key to merge duplicates
@@ -978,7 +1006,7 @@ async function handleRequest(request, context) {
       const query = { createdAt: { $gte: sevenDaysAgo } };
       
       let sectorName = 'All of Noida';
-      if (sector) {
+      if (sector && sector !== 'all') {
         query.sectorId = sector;
         const sectorData = NOIDA_SECTORS.find((s) => s.id === sector);
         sectorName = sectorData ? sectorData.name : 'Noida';
@@ -986,13 +1014,14 @@ async function handleRequest(request, context) {
 
       const checkins = await checkinsCollection.find(query).toArray();
 
-      // Group by show
+      // Group by normalizedTitle (like trending)
       const showMap = new Map();
       checkins.forEach((checkin) => {
-        const key = checkin.imdbId;
+        // Use normalizedTitle or fallback to title
+        const key = checkin.normalizedTitle || (checkin.title ? checkin.title.toLowerCase() : checkin.showId);
         if (!showMap.has(key)) {
           showMap.set(key, {
-            title: checkin.title,
+            title: checkin.displayTitle || checkin.title,
             checkins: [],
           });
         }
