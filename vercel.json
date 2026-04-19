@@ -1,0 +1,10 @@
+{
+  "buildCommand": "yarn build",
+  "framework": "nextjs",
+  "regions": ["bom1"],
+  "env": {
+    "MONGO_URL": "@mongo_url",
+    "DB_NAME": "@db_name",
+    "OMDB_API_KEY": "@omdb_api_key"
+  }
+}
