@@ -510,6 +510,33 @@ const PLATFORM_COLORS = {
   'Various': '#6B7280',
 };
 
+// Time slots for filtering
+const TIME_SLOTS = [
+  { id: 'morning', name: 'Morning', startHour: 6, endHour: 12, icon: '🌅' },
+  { id: 'afternoon', name: 'Afternoon', startHour: 12, endHour: 17, icon: '☀️' },
+  { id: 'evening', name: 'Evening', startHour: 17, endHour: 21, icon: '🌆' },
+  { id: 'night', name: 'Night', startHour: 21, endHour: 6, icon: '🌙' },
+];
+
+// Get time slot from hour
+function getTimeSlot(hour) {
+  if (hour >= 6 && hour < 12) return 'morning';
+  if (hour >= 12 && hour < 17) return 'afternoon';
+  if (hour >= 17 && hour < 21) return 'evening';
+  return 'night';
+}
+
+// Check if hour is in time slot
+function isInTimeSlot(hour, slotId) {
+  const slot = TIME_SLOTS.find(s => s.id === slotId);
+  if (!slot) return true;
+  
+  if (slot.id === 'night') {
+    return hour >= 21 || hour < 6;
+  }
+  return hour >= slot.startHour && hour < slot.endHour;
+}
+
 // Calculate trend score with recency boost
 function calculateTrendScore(checkins) {
   const now = Date.now();
@@ -574,6 +601,11 @@ async function handleRequest(request, context) {
     // Get device types
     if (path === '/devices' && method === 'GET') {
       return NextResponse.json({ devices: DEVICE_TYPES }, { headers });
+    }
+
+    // Get time slots
+    if (path === '/timeslots' && method === 'GET') {
+      return NextResponse.json({ timeSlots: TIME_SLOTS }, { headers });
     }
 
     // Search shows - Local DB first, then OMDb fallback
@@ -653,9 +685,10 @@ async function handleRequest(request, context) {
       const { searchParams } = new URL(request.url);
       const sector = searchParams.get('sector');
       const deviceType = searchParams.get('device');
-      const dateFrom = searchParams.get('from'); // ISO date string
-      const dateTo = searchParams.get('to'); // ISO date string
+      const dateFrom = searchParams.get('from'); // ISO date string or YYYY-MM-DD
+      const dateTo = searchParams.get('to'); // ISO date string or YYYY-MM-DD
       const timeRange = searchParams.get('range'); // 'today', 'week', 'month', 'all'
+      const timeSlot = searchParams.get('timeSlot'); // 'morning', 'afternoon', 'evening', 'night'
 
       const { db } = await connectToDatabase();
       const checkinsCollection = db.collection('checkins');
@@ -672,6 +705,9 @@ async function handleRequest(request, context) {
       } else if (timeRange === 'month') {
         const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         dateQuery = { $gte: monthAgo };
+      } else if (timeRange === 'all') {
+        // No date filter
+        dateQuery = {};
       } else if (dateFrom || dateTo) {
         if (dateFrom) dateQuery.$gte = new Date(dateFrom);
         if (dateTo) {
@@ -685,7 +721,10 @@ async function handleRequest(request, context) {
         dateQuery = { $gte: sevenDaysAgo };
       }
 
-      const query = { createdAt: dateQuery };
+      const query = {};
+      if (Object.keys(dateQuery).length > 0) {
+        query.createdAt = dateQuery;
+      }
       if (sector && sector !== 'all') {
         query.sectorId = sector;
       }
@@ -693,12 +732,21 @@ async function handleRequest(request, context) {
         query.deviceType = deviceType;
       }
 
-      const checkins = await checkinsCollection.find(query).toArray();
+      let checkins = await checkinsCollection.find(query).toArray();
+
+      // Filter by time slot if specified
+      if (timeSlot && timeSlot !== 'all') {
+        checkins = checkins.filter(checkin => {
+          const hour = new Date(checkin.createdAt).getHours();
+          return isInTimeSlot(hour, timeSlot);
+        });
+      }
 
       // Group by normalizedTitle (to merge same shows with different spellings)
       const showMap = new Map();
       const deviceStats = { mobile: 0, laptop: 0, tablet: 0, tv: 0 };
       const platformStats = {};
+      const timeSlotStats = { morning: 0, afternoon: 0, evening: 0, night: 0 };
       
       checkins.forEach((checkin) => {
         // Use normalizedTitle as key to merge duplicates
@@ -741,6 +789,11 @@ async function handleRequest(request, context) {
         // Track platform stats
         const plat = checkin.platform || 'Various';
         platformStats[plat] = (platformStats[plat] || 0) + 1;
+        
+        // Track time slot stats
+        const hour = new Date(checkin.createdAt).getHours();
+        const slot = getTimeSlot(hour);
+        timeSlotStats[slot]++;
       });
 
       // Calculate scores and sort
@@ -762,15 +815,15 @@ async function handleRequest(request, context) {
 
       return NextResponse.json({ 
         trending, 
-        stats: { deviceStats, platformStats },
-        filters: { sector, deviceType, timeRange, dateFrom, dateTo }
+        stats: { deviceStats, platformStats, timeSlotStats },
+        filters: { sector, deviceType, timeRange, timeSlot, dateFrom, dateTo }
       }, { headers });
     }
 
     // Create check-in with fuzzy matching normalization and poster fetching
     if (path === '/checkin' && method === 'POST') {
       const body = await request.json();
-      let { showId, title, poster, type, year, sectorId, deviceType, platform } = body;
+      let { showId, title, poster, type, year, sectorId, deviceType, platform, season } = body;
 
       if (!title || !sectorId || !deviceType) {
         return NextResponse.json(
@@ -841,6 +894,9 @@ async function handleRequest(request, context) {
       }
 
       // Create the checkin
+      const now = new Date();
+      const timeSlot = getTimeSlot(now.getHours());
+      
       const checkin = {
         id: uuidv4(),
         showId: existingShow.id,
@@ -851,16 +907,19 @@ async function handleRequest(request, context) {
         year: existingShow.year,
         platform: existingShow.platform,
         imdbId: existingShow.imdbId,
+        season: season || null, // Season info (e.g., "S1", "S2", "S3")
         sectorId,
         sectorName: sector.name,
         sectorArea: sector.area,
         deviceType,
         deviceName: device.name,
-        createdAt: new Date(),
+        timeSlot, // Store time slot for filtering
+        createdAt: now,
         // Add readable time info
-        watchedAt: new Date().toISOString(),
-        watchedDate: new Date().toLocaleDateString('en-IN'),
-        watchedTime: new Date().toLocaleTimeString('en-IN'),
+        watchedAt: now.toISOString(),
+        watchedDate: now.toLocaleDateString('en-IN'),
+        watchedTime: now.toLocaleTimeString('en-IN'),
+        watchedHour: now.getHours(),
       };
 
       await checkinsCollection.insertOne(checkin);

@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Flame, TrendingUp, MapPin, Plus, Search, Share2, Tv, Film, X, Loader2, CheckCircle2, Smartphone, Laptop, Tablet, Monitor, Calendar, Clock } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Flame, TrendingUp, MapPin, Plus, Search, Share2, Tv, Film, X, Loader2, CheckCircle2, Smartphone, Laptop, Tablet, Monitor, Calendar, Clock, SunMedium, Moon, Sunrise, Sunset, CalendarDays } from 'lucide-react';
 
 // Platform colors
 const PLATFORM_COLORS = {
@@ -39,6 +40,27 @@ const TIME_RANGES = [
   { id: 'week', name: 'This Week' },
   { id: 'month', name: 'This Month' },
   { id: 'all', name: 'All Time' },
+  { id: 'custom', name: 'Custom Range' },
+];
+
+// Time slot options
+const TIME_SLOTS = [
+  { id: 'all', name: 'All Day', icon: '⏰' },
+  { id: 'morning', name: 'Morning (6AM-12PM)', icon: '🌅' },
+  { id: 'afternoon', name: 'Afternoon (12PM-5PM)', icon: '☀️' },
+  { id: 'evening', name: 'Evening (5PM-9PM)', icon: '🌆' },
+  { id: 'night', name: 'Night (9PM-6AM)', icon: '🌙' },
+];
+
+// Season options
+const SEASONS = [
+  { id: '', name: 'No season / Movie' },
+  { id: 'S1', name: 'Season 1' },
+  { id: 'S2', name: 'Season 2' },
+  { id: 'S3', name: 'Season 3' },
+  { id: 'S4', name: 'Season 4' },
+  { id: 'S5', name: 'Season 5' },
+  { id: 'S6', name: 'Season 6+' },
 ];
 
 // Format relative time
@@ -58,11 +80,22 @@ const formatRelativeTime = (dateStr) => {
   return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 };
 
+// Format date for input
+const formatDateForInput = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  return d.toISOString().split('T')[0];
+};
+
 export default function HomePage() {
   const [trending, setTrending] = useState([]);
   const [sectors, setSectors] = useState([]);
   const [selectedSector, setSelectedSector] = useState('all');
   const [selectedTimeRange, setSelectedTimeRange] = useState('week');
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [trendStats, setTrendStats] = useState(null);
@@ -75,6 +108,7 @@ export default function HomePage() {
   const [selectedShow, setSelectedShow] = useState(null);
   const [checkinSector, setCheckinSector] = useState('');
   const [checkinDevice, setCheckinDevice] = useState('');
+  const [checkinSeason, setCheckinSeason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [checkinSuccess, setCheckinSuccess] = useState(false);
   const [popularShows, setPopularShows] = useState([]);
@@ -95,8 +129,18 @@ export default function HomePage() {
       if (selectedSector && selectedSector !== 'all') {
         params.append('sector', selectedSector);
       }
-      if (selectedTimeRange && selectedTimeRange !== 'all') {
+      
+      // Handle time range
+      if (selectedTimeRange === 'custom' && (dateFrom || dateTo)) {
+        if (dateFrom) params.append('from', dateFrom);
+        if (dateTo) params.append('to', dateTo);
+      } else if (selectedTimeRange && selectedTimeRange !== 'all' && selectedTimeRange !== 'custom') {
         params.append('range', selectedTimeRange);
+      }
+      
+      // Handle time slot
+      if (selectedTimeSlot && selectedTimeSlot !== 'all') {
+        params.append('timeSlot', selectedTimeSlot);
       }
       
       url += params.toString();
@@ -109,7 +153,7 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedSector, selectedTimeRange]);
+  }, [selectedSector, selectedTimeRange, selectedTimeSlot, dateFrom, dateTo]);
 
   const fetchSectors = async () => {
     try {
@@ -182,13 +226,14 @@ export default function HomePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: selectedShow.title, // Title is required, LLM will normalize it
+          title: selectedShow.title,
           poster: selectedShow.poster || null,
           type: selectedShow.type,
           year: selectedShow.year || null,
           platform: selectedShow.platform || 'Various',
           sectorId: checkinSector,
           deviceType: checkinDevice,
+          season: checkinSeason || null, // Season info (S1, S2, etc.)
         }),
       });
 
@@ -201,6 +246,7 @@ export default function HomePage() {
           setSearchResults([]);
           setCheckinSector('');
           setCheckinDevice('');
+          setCheckinSeason('');
           setCheckinSuccess(false);
           fetchTrending();
           fetchStats();
@@ -369,14 +415,58 @@ export default function HomePage() {
             {/* Time Range Filter */}
             <div className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-pink-400 flex-shrink-0" />
-              <Select value={selectedTimeRange} onValueChange={setSelectedTimeRange}>
-                <SelectTrigger className="w-[130px] bg-gray-900/50 border-gray-700 text-white">
+              <Select value={selectedTimeRange} onValueChange={(val) => {
+                setSelectedTimeRange(val);
+                if (val !== 'custom') {
+                  setDateFrom('');
+                  setDateTo('');
+                }
+              }}>
+                <SelectTrigger className="w-[140px] bg-gray-900/50 border-gray-700 text-white">
                   <SelectValue placeholder="This Week" />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-gray-700">
                   {TIME_RANGES.map((range) => (
                     <SelectItem key={range.id} value={range.id} className="text-white hover:bg-gray-800">
                       {range.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Custom Date Range */}
+            {selectedTimeRange === 'custom' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="px-2 py-1.5 text-sm bg-gray-800 border border-gray-700 rounded text-white"
+                  placeholder="From"
+                />
+                <span className="text-gray-500">to</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="px-2 py-1.5 text-sm bg-gray-800 border border-gray-700 rounded text-white"
+                  placeholder="To"
+                />
+              </div>
+            )}
+
+            {/* Time Slot Filter */}
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-orange-400 flex-shrink-0" />
+              <Select value={selectedTimeSlot} onValueChange={setSelectedTimeSlot}>
+                <SelectTrigger className="w-[150px] bg-gray-900/50 border-gray-700 text-white">
+                  <SelectValue placeholder="All Day" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-gray-700">
+                  {TIME_SLOTS.map((slot) => (
+                    <SelectItem key={slot.id} value={slot.id} className="text-white hover:bg-gray-800">
+                      {slot.icon} {slot.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -741,6 +831,28 @@ export default function HomePage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Step 4: Select Season (for series) */}
+                {selectedShow && (selectedShow.type === 'series' || selectedShow.type === 'tv') && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 mb-2 block">Which season?</label>
+                    <div className="flex flex-wrap gap-2">
+                      {SEASONS.map((season) => (
+                        <button
+                          key={season.id}
+                          onClick={() => setCheckinSeason(season.id)}
+                          className={`px-3 py-1.5 rounded-lg border text-sm transition-all ${
+                            checkinSeason === season.id
+                              ? 'border-purple-500 bg-purple-500/20 text-purple-300'
+                              : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600'
+                          }`}
+                        >
+                          {season.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Submit Button */}
                 <Button
