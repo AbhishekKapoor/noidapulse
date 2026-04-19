@@ -24,19 +24,165 @@ async function connectToDatabase() {
   return { client, db };
 }
 
-// Noida sectors data
+// Generate actual Noida sectors (1-135 + Greater Noida)
 const NOIDA_SECTORS = [
-  { id: '201301', name: 'Sector 1-10', pincode: '201301' },
-  { id: '201302', name: 'Sector 11-20', pincode: '201302' },
-  { id: '201303', name: 'Sector 21-30', pincode: '201303' },
-  { id: '201304', name: 'Sector 31-40', pincode: '201304' },
-  { id: '201305', name: 'Sector 41-50', pincode: '201305' },
-  { id: '201306', name: 'Sector 51-60', pincode: '201306' },
-  { id: '201307', name: 'Sector 61-70', pincode: '201307' },
-  { id: '201308', name: 'Sector 71-80', pincode: '201308' },
-  { id: '201309', name: 'Sector 81-100', pincode: '201309' },
-  { id: '201310', name: 'Sector 100+', pincode: '201310' },
+  ...Array.from({ length: 135 }, (_, i) => ({
+    id: `sector-${i + 1}`,
+    name: `Sector ${i + 1}`,
+    area: 'Noida'
+  })),
+  { id: 'greater-noida-alpha', name: 'Alpha', area: 'Greater Noida' },
+  { id: 'greater-noida-beta', name: 'Beta', area: 'Greater Noida' },
+  { id: 'greater-noida-gamma', name: 'Gamma', area: 'Greater Noida' },
+  { id: 'greater-noida-delta', name: 'Delta', area: 'Greater Noida' },
+  { id: 'greater-noida-chi', name: 'Chi', area: 'Greater Noida' },
+  { id: 'greater-noida-omega', name: 'Omega', area: 'Greater Noida' },
+  { id: 'noida-extension', name: 'Noida Extension', area: 'Greater Noida' },
+  { id: 'techzone', name: 'Tech Zone', area: 'Greater Noida' },
 ];
+
+// Device types
+const DEVICE_TYPES = [
+  { id: 'mobile', name: 'Mobile', icon: '📱' },
+  { id: 'laptop', name: 'Laptop', icon: '💻' },
+  { id: 'tablet', name: 'Tablet', icon: '📲' },
+  { id: 'tv', name: 'TV', icon: '📺' },
+];
+
+// Local shows database with platform info
+const LOCAL_SHOWS = [
+  {"id": "local-1", "title": "Mirzapur", "type": "series", "platform": "Prime"},
+  {"id": "local-2", "title": "Panchayat", "type": "series", "platform": "Prime"},
+  {"id": "local-3", "title": "The Family Man", "type": "series", "platform": "Prime"},
+  {"id": "local-4", "title": "Made in Heaven", "type": "series", "platform": "Prime"},
+  {"id": "local-5", "title": "Farzi", "type": "series", "platform": "Prime"},
+  {"id": "local-6", "title": "Paatal Lok", "type": "series", "platform": "Prime"},
+  {"id": "local-7", "title": "Breathe", "type": "series", "platform": "Prime"},
+  {"id": "local-8", "title": "Breathe Into the Shadows", "type": "series", "platform": "Prime"},
+  {"id": "local-9", "title": "Delhi Crime", "type": "series", "platform": "Netflix"},
+  {"id": "local-10", "title": "Sacred Games", "type": "series", "platform": "Netflix"},
+  {"id": "local-11", "title": "Jamtara", "type": "series", "platform": "Netflix"},
+  {"id": "local-12", "title": "Kota Factory", "type": "series", "platform": "Netflix"},
+  {"id": "local-13", "title": "She", "type": "series", "platform": "Netflix"},
+  {"id": "local-14", "title": "Class", "type": "series", "platform": "Netflix"},
+  {"id": "local-15", "title": "Rana Naidu", "type": "series", "platform": "Netflix"},
+  {"id": "local-16", "title": "Trial by Fire", "type": "series", "platform": "Netflix"},
+  {"id": "local-17", "title": "Scam 1992", "type": "series", "platform": "SonyLIV"},
+  {"id": "local-18", "title": "Scam 2003", "type": "series", "platform": "SonyLIV"},
+  {"id": "local-19", "title": "Rocket Boys", "type": "series", "platform": "SonyLIV"},
+  {"id": "local-20", "title": "Maharani", "type": "series", "platform": "SonyLIV"},
+  {"id": "local-21", "title": "Undekhi", "type": "series", "platform": "SonyLIV"},
+  {"id": "local-22", "title": "Avrodh", "type": "series", "platform": "SonyLIV"},
+  {"id": "local-23", "title": "Asur", "type": "series", "platform": "JioHotstar"},
+  {"id": "local-24", "title": "Special OPS", "type": "series", "platform": "JioHotstar"},
+  {"id": "local-25", "title": "Criminal Justice", "type": "series", "platform": "JioHotstar"},
+  {"id": "local-26", "title": "Aarya", "type": "series", "platform": "JioHotstar"},
+  {"id": "local-27", "title": "Human", "type": "series", "platform": "JioHotstar"},
+  {"id": "local-28", "title": "Hostages", "type": "series", "platform": "JioHotstar"},
+  {"id": "local-29", "title": "The Night Manager (India)", "type": "series", "platform": "JioHotstar"},
+  {"id": "local-30", "title": "Taaza Khabar", "type": "series", "platform": "JioHotstar"},
+  {"id": "local-31", "title": "3 Idiots", "type": "movie", "platform": "Various"},
+  {"id": "local-32", "title": "Dangal", "type": "movie", "platform": "Various"},
+  {"id": "local-33", "title": "PK", "type": "movie", "platform": "Various"},
+  {"id": "local-34", "title": "Zindagi Na Milegi Dobara", "type": "movie", "platform": "Various"},
+  {"id": "local-35", "title": "Yeh Jawaani Hai Deewani", "type": "movie", "platform": "Various"},
+  {"id": "local-36", "title": "Kabir Singh", "type": "movie", "platform": "Various"},
+  {"id": "local-37", "title": "Andhadhun", "type": "movie", "platform": "Various"},
+  {"id": "local-38", "title": "Drishyam", "type": "movie", "platform": "Various"},
+  {"id": "local-39", "title": "Drishyam 2", "type": "movie", "platform": "Various"},
+  {"id": "local-40", "title": "Gully Boy", "type": "movie", "platform": "Various"},
+  {"id": "local-41", "title": "Article 15", "type": "movie", "platform": "Various"},
+  {"id": "local-42", "title": "Stree", "type": "movie", "platform": "Various"},
+  {"id": "local-43", "title": "Bhediya", "type": "movie", "platform": "Various"},
+  {"id": "local-44", "title": "Bhool Bhulaiyaa 2", "type": "movie", "platform": "Various"},
+  {"id": "local-45", "title": "War", "type": "movie", "platform": "Various"},
+  {"id": "local-46", "title": "Pathaan", "type": "movie", "platform": "Various"},
+  {"id": "local-47", "title": "Jawan", "type": "movie", "platform": "Various"},
+  {"id": "local-48", "title": "Tiger Zinda Hai", "type": "movie", "platform": "Various"},
+  {"id": "local-49", "title": "Bajrangi Bhaijaan", "type": "movie", "platform": "Various"},
+  {"id": "local-50", "title": "Chhichhore", "type": "movie", "platform": "Various"},
+  {"id": "local-51", "title": "RRR", "type": "movie", "platform": "Various"},
+  {"id": "local-52", "title": "Baahubali: The Beginning", "type": "movie", "platform": "Various"},
+  {"id": "local-53", "title": "Baahubali 2", "type": "movie", "platform": "Various"},
+  {"id": "local-54", "title": "Pushpa: The Rise", "type": "movie", "platform": "Various"},
+  {"id": "local-55", "title": "KGF Chapter 1", "type": "movie", "platform": "Various"},
+  {"id": "local-56", "title": "KGF Chapter 2", "type": "movie", "platform": "Various"},
+  {"id": "local-57", "title": "Vikram", "type": "movie", "platform": "Various"},
+  {"id": "local-58", "title": "Master", "type": "movie", "platform": "Various"},
+  {"id": "local-59", "title": "Leo", "type": "movie", "platform": "Various"},
+  {"id": "local-60", "title": "Jailer", "type": "movie", "platform": "Various"},
+  {"id": "local-61", "title": "Pitchers", "type": "series", "platform": "ZEE5"},
+  {"id": "local-62", "title": "TVF Tripling", "type": "series", "platform": "ZEE5"},
+  {"id": "local-63", "title": "Permanent Roommates", "type": "series", "platform": "ZEE5"},
+  {"id": "local-64", "title": "Aspirants", "type": "series", "platform": "YouTube"},
+  {"id": "local-65", "title": "Gullak", "type": "series", "platform": "SonyLIV"},
+  {"id": "local-66", "title": "College Romance", "type": "series", "platform": "SonyLIV"},
+  {"id": "local-67", "title": "Flames", "type": "series", "platform": "Prime"},
+  {"id": "local-68", "title": "Little Things", "type": "series", "platform": "Netflix"},
+  {"id": "local-69", "title": "Decoupled", "type": "series", "platform": "Netflix"},
+  {"id": "local-70", "title": "Masaba Masaba", "type": "series", "platform": "Netflix"},
+  {"id": "local-71", "title": "Lust Stories", "type": "movie", "platform": "Netflix"},
+  {"id": "local-72", "title": "Ghost Stories", "type": "movie", "platform": "Netflix"},
+  {"id": "local-73", "title": "Monica O My Darling", "type": "movie", "platform": "Netflix"},
+  {"id": "local-74", "title": "Jaane Jaan", "type": "movie", "platform": "Netflix"},
+  {"id": "local-75", "title": "Darlings", "type": "movie", "platform": "Netflix"},
+  {"id": "local-76", "title": "Sherni", "type": "movie", "platform": "Prime"},
+  {"id": "local-77", "title": "Sardar Udham", "type": "movie", "platform": "Prime"},
+  {"id": "local-78", "title": "Shershaah", "type": "movie", "platform": "Prime"},
+  {"id": "local-79", "title": "Ram Setu", "type": "movie", "platform": "Prime"},
+  {"id": "local-80", "title": "Atrangi Re", "type": "movie", "platform": "JioHotstar"},
+  {"id": "local-81", "title": "Housefull", "type": "movie", "platform": "Various"},
+  {"id": "local-82", "title": "Golmaal", "type": "movie", "platform": "Various"},
+  {"id": "local-83", "title": "Welcome", "type": "movie", "platform": "Various"},
+  {"id": "local-84", "title": "Hera Pheri", "type": "movie", "platform": "Various"},
+  {"id": "local-85", "title": "Phir Hera Pheri", "type": "movie", "platform": "Various"},
+  {"id": "local-86", "title": "Munna Bhai MBBS", "type": "movie", "platform": "Various"},
+  {"id": "local-87", "title": "Lage Raho Munna Bhai", "type": "movie", "platform": "Various"},
+  {"id": "local-88", "title": "Don", "type": "movie", "platform": "Various"},
+  {"id": "local-89", "title": "Don 2", "type": "movie", "platform": "Various"},
+  {"id": "local-90", "title": "Raees", "type": "movie", "platform": "Various"},
+  {"id": "local-91", "title": "Black Mirror", "type": "series", "platform": "Netflix"},
+  {"id": "local-92", "title": "Stranger Things", "type": "series", "platform": "Netflix"},
+  {"id": "local-93", "title": "Money Heist", "type": "series", "platform": "Netflix"},
+  {"id": "local-94", "title": "Breaking Bad", "type": "series", "platform": "Netflix"},
+  {"id": "local-95", "title": "Game of Thrones", "type": "series", "platform": "JioHotstar"},
+  {"id": "local-96", "title": "The Boys", "type": "series", "platform": "Prime"},
+  {"id": "local-97", "title": "Reacher", "type": "series", "platform": "Prime"},
+  {"id": "local-98", "title": "Loki", "type": "series", "platform": "JioHotstar"},
+  {"id": "local-99", "title": "WandaVision", "type": "series", "platform": "JioHotstar"},
+  {"id": "local-100", "title": "Narcos", "type": "series", "platform": "Netflix"},
+  {"id": "local-101", "title": "Bigg Boss", "type": "tv", "platform": "JioHotstar"},
+  {"id": "local-102", "title": "Shark Tank India", "type": "tv", "platform": "SonyLIV"},
+  {"id": "local-103", "title": "Indian Idol", "type": "tv", "platform": "SonyLIV"},
+  {"id": "local-104", "title": "Kaun Banega Crorepati", "type": "tv", "platform": "SonyLIV"},
+  {"id": "local-105", "title": "Roadies", "type": "tv", "platform": "JioHotstar"},
+  {"id": "local-106", "title": "Splitsvilla", "type": "tv", "platform": "JioHotstar"},
+  {"id": "local-107", "title": "MTV Hustle", "type": "tv", "platform": "JioHotstar"},
+  {"id": "local-108", "title": "Dance India Dance", "type": "tv", "platform": "ZEE5"},
+  {"id": "local-109", "title": "Sa Re Ga Ma Pa", "type": "tv", "platform": "ZEE5"},
+  {"id": "local-110", "title": "Taarak Mehta Ka Ooltah Chashmah", "type": "tv", "platform": "JioHotstar"},
+  {"id": "local-111", "title": "CID", "type": "tv", "platform": "SonyLIV"},
+  {"id": "local-112", "title": "Crime Patrol", "type": "tv", "platform": "SonyLIV"},
+  {"id": "local-113", "title": "Savdhaan India", "type": "tv", "platform": "Various"},
+  {"id": "local-114", "title": "Kumkum Bhagya", "type": "tv", "platform": "ZEE5"},
+  {"id": "local-115", "title": "Naagin", "type": "tv", "platform": "JioHotstar"},
+  {"id": "local-116", "title": "Yeh Rishta Kya Kehlata Hai", "type": "tv", "platform": "JioHotstar"},
+  {"id": "local-117", "title": "Anupamaa", "type": "tv", "platform": "JioHotstar"},
+  {"id": "local-118", "title": "Kasautii Zindagii Kay", "type": "tv", "platform": "JioHotstar"},
+  {"id": "local-119", "title": "Balika Vadhu", "type": "tv", "platform": "JioHotstar"},
+  {"id": "local-120", "title": "Mahabharat", "type": "tv", "platform": "JioHotstar"},
+];
+
+// Platform colors for UI
+const PLATFORM_COLORS = {
+  'Prime': '#00A8E1',
+  'Netflix': '#E50914',
+  'JioHotstar': '#1F80E0',
+  'SonyLIV': '#000000',
+  'ZEE5': '#8B5CF6',
+  'YouTube': '#FF0000',
+  'Various': '#6B7280',
+};
 
 // Calculate trend score with recency boost
 function calculateTrendScore(checkins) {
@@ -86,10 +232,25 @@ async function handleRequest(request, context) {
 
     // Get sectors
     if (path === '/sectors' && method === 'GET') {
-      return NextResponse.json({ sectors: NOIDA_SECTORS }, { headers });
+      const { searchParams } = new URL(request.url);
+      const area = searchParams.get('area'); // 'noida' or 'greater-noida'
+      
+      let filteredSectors = NOIDA_SECTORS;
+      if (area === 'noida') {
+        filteredSectors = NOIDA_SECTORS.filter(s => s.area === 'Noida');
+      } else if (area === 'greater-noida') {
+        filteredSectors = NOIDA_SECTORS.filter(s => s.area === 'Greater Noida');
+      }
+      
+      return NextResponse.json({ sectors: filteredSectors }, { headers });
     }
 
-    // Search shows using OMDb API
+    // Get device types
+    if (path === '/devices' && method === 'GET') {
+      return NextResponse.json({ devices: DEVICE_TYPES }, { headers });
+    }
+
+    // Search shows - Local DB first, then OMDb fallback
     if (path === '/search' && method === 'GET') {
       const { searchParams } = new URL(request.url);
       const query = searchParams.get('q');
@@ -98,6 +259,25 @@ async function handleRequest(request, context) {
         return NextResponse.json({ results: [] }, { headers });
       }
 
+      const queryLower = query.toLowerCase();
+      
+      // Search local database first
+      const localResults = LOCAL_SHOWS.filter(show => 
+        show.title.toLowerCase().includes(queryLower)
+      ).map(show => ({
+        showId: show.id,
+        title: show.title,
+        type: show.type,
+        platform: show.platform,
+        source: 'local',
+      }));
+
+      // If we have local results, return them
+      if (localResults.length > 0) {
+        return NextResponse.json({ results: localResults, source: 'local' }, { headers });
+      }
+
+      // Fallback to OMDb API
       const apiKey = process.env.OMDB_API_KEY;
       const omdbUrl = `http://www.omdbapi.com/?apikey=${apiKey}&s=${encodeURIComponent(query)}`;
       
@@ -106,22 +286,47 @@ async function handleRequest(request, context) {
 
       if (omdbData.Response === 'True') {
         const results = omdbData.Search.map((item) => ({
-          imdbId: item.imdbID,
+          showId: item.imdbID,
           title: item.Title,
           year: item.Year,
           type: item.Type,
           poster: item.Poster !== 'N/A' ? item.Poster : null,
+          platform: 'Various',
+          source: 'omdb',
         }));
-        return NextResponse.json({ results }, { headers });
+        return NextResponse.json({ results, source: 'omdb' }, { headers });
       }
 
-      return NextResponse.json({ results: [] }, { headers });
+      return NextResponse.json({ results: [], source: 'none' }, { headers });
+    }
+
+    // Get popular/suggested shows
+    if (path === '/popular' && method === 'GET') {
+      const { searchParams } = new URL(request.url);
+      const platform = searchParams.get('platform');
+      const type = searchParams.get('type');
+      const limit = parseInt(searchParams.get('limit') || '20');
+      
+      let shows = [...LOCAL_SHOWS];
+      
+      if (platform && platform !== 'all') {
+        shows = shows.filter(s => s.platform === platform);
+      }
+      if (type && type !== 'all') {
+        shows = shows.filter(s => s.type === type);
+      }
+      
+      // Shuffle and limit
+      shows = shows.sort(() => Math.random() - 0.5).slice(0, limit);
+      
+      return NextResponse.json({ shows }, { headers });
     }
 
     // Get trending shows
     if (path === '/trending' && method === 'GET') {
       const { searchParams } = new URL(request.url);
       const sector = searchParams.get('sector');
+      const deviceType = searchParams.get('device');
 
       const { db } = await connectToDatabase();
       const checkinsCollection = db.collection('checkins');
@@ -129,51 +334,78 @@ async function handleRequest(request, context) {
       // Get checkins from last 7 days
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       const query = { createdAt: { $gte: sevenDaysAgo } };
-      if (sector) {
+      if (sector && sector !== 'all') {
         query.sectorId = sector;
+      }
+      if (deviceType && deviceType !== 'all') {
+        query.deviceType = deviceType;
       }
 
       const checkins = await checkinsCollection.find(query).toArray();
 
       // Group by show
       const showMap = new Map();
+      const deviceStats = { mobile: 0, laptop: 0, tablet: 0, tv: 0 };
+      const platformStats = {};
+      
       checkins.forEach((checkin) => {
-        const key = checkin.imdbId;
+        const key = checkin.showId || checkin.imdbId;
         if (!showMap.has(key)) {
           showMap.set(key, {
-            imdbId: checkin.imdbId,
+            showId: key,
             title: checkin.title,
             poster: checkin.poster,
             type: checkin.type,
             year: checkin.year,
+            platform: checkin.platform || 'Various',
             checkins: [],
+            devices: { mobile: 0, laptop: 0, tablet: 0, tv: 0 },
           });
         }
-        showMap.get(key).checkins.push(checkin);
+        const show = showMap.get(key);
+        show.checkins.push(checkin);
+        
+        // Track device stats
+        if (checkin.deviceType && deviceStats[checkin.deviceType] !== undefined) {
+          deviceStats[checkin.deviceType]++;
+          show.devices[checkin.deviceType]++;
+        }
+        
+        // Track platform stats
+        const plat = checkin.platform || 'Various';
+        platformStats[plat] = (platformStats[plat] || 0) + 1;
       });
 
       // Calculate scores and sort
       const trending = Array.from(showMap.values())
         .map((show) => ({
-          ...show,
+          showId: show.showId,
+          title: show.title,
+          poster: show.poster,
+          type: show.type,
+          year: show.year,
+          platform: show.platform,
           score: calculateTrendScore(show.checkins),
           checkinCount: show.checkins.length,
-          checkins: undefined,
+          devices: show.devices,
         }))
         .sort((a, b) => b.score - a.score)
         .slice(0, 10);
 
-      return NextResponse.json({ trending }, { headers });
+      return NextResponse.json({ 
+        trending, 
+        stats: { deviceStats, platformStats }
+      }, { headers });
     }
 
     // Create check-in
     if (path === '/checkin' && method === 'POST') {
       const body = await request.json();
-      const { imdbId, title, poster, type, year, sectorId } = body;
+      const { showId, title, poster, type, year, sectorId, deviceType, platform } = body;
 
-      if (!imdbId || !title || !sectorId) {
+      if (!showId || !title || !sectorId || !deviceType) {
         return NextResponse.json(
-          { error: 'Missing required fields: imdbId, title, sectorId' },
+          { error: 'Missing required fields: showId, title, sectorId, deviceType' },
           { status: 400, headers }
         );
       }
@@ -186,18 +418,30 @@ async function handleRequest(request, context) {
         );
       }
 
+      const device = DEVICE_TYPES.find((d) => d.id === deviceType);
+      if (!device) {
+        return NextResponse.json(
+          { error: 'Invalid device type' },
+          { status: 400, headers }
+        );
+      }
+
       const { db } = await connectToDatabase();
       const checkinsCollection = db.collection('checkins');
 
       const checkin = {
         id: uuidv4(),
-        imdbId,
+        showId,
         title,
         poster: poster || null,
         type: type || 'unknown',
         year: year || null,
+        platform: platform || 'Various',
         sectorId,
         sectorName: sector.name,
+        sectorArea: sector.area,
+        deviceType,
+        deviceName: device.name,
         createdAt: new Date(),
       };
 

@@ -6,14 +6,39 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Flame, TrendingUp, MapPin, Plus, Search, Share2, Tv, Film, X, Loader2, CheckCircle2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Flame, TrendingUp, MapPin, Plus, Search, Share2, Tv, Film, X, Loader2, CheckCircle2, Smartphone, Laptop, Tablet, Monitor } from 'lucide-react';
+
+// Platform colors
+const PLATFORM_COLORS = {
+  'Prime': 'bg-blue-500',
+  'Netflix': 'bg-red-600',
+  'JioHotstar': 'bg-blue-600',
+  'SonyLIV': 'bg-gray-800',
+  'ZEE5': 'bg-purple-600',
+  'YouTube': 'bg-red-500',
+  'Various': 'bg-gray-600',
+};
+
+// Device icons
+const DeviceIcon = ({ type, className = "w-4 h-4" }) => {
+  switch(type) {
+    case 'mobile': return <Smartphone className={className} />;
+    case 'laptop': return <Laptop className={className} />;
+    case 'tablet': return <Tablet className={className} />;
+    case 'tv': return <Monitor className={className} />;
+    default: return <Smartphone className={className} />;
+  }
+};
 
 export default function HomePage() {
   const [trending, setTrending] = useState([]);
   const [sectors, setSectors] = useState([]);
-  const [selectedSector, setSelectedSector] = useState('');
+  const [selectedSector, setSelectedSector] = useState('all');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
+  const [trendStats, setTrendStats] = useState(null);
   
   // Check-in modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,12 +47,17 @@ export default function HomePage() {
   const [searching, setSearching] = useState(false);
   const [selectedShow, setSelectedShow] = useState(null);
   const [checkinSector, setCheckinSector] = useState('');
+  const [checkinDevice, setCheckinDevice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [checkinSuccess, setCheckinSuccess] = useState(false);
+  const [popularShows, setPopularShows] = useState([]);
 
   // Share modal state
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareData, setShareData] = useState(null);
+
+  // Sector search
+  const [sectorSearch, setSectorSearch] = useState('');
 
   const fetchTrending = useCallback(async () => {
     setLoading(true);
@@ -38,6 +68,7 @@ export default function HomePage() {
       const response = await fetch(url);
       const data = await response.json();
       setTrending(data.trending || []);
+      setTrendStats(data.stats || null);
     } catch (error) {
       console.error('Error fetching trending:', error);
     } finally {
@@ -65,9 +96,20 @@ export default function HomePage() {
     }
   };
 
+  const fetchPopularShows = async () => {
+    try {
+      const response = await fetch('/api/popular?limit=12');
+      const data = await response.json();
+      setPopularShows(data.shows || []);
+    } catch (error) {
+      console.error('Error fetching popular shows:', error);
+    }
+  };
+
   useEffect(() => {
     fetchSectors();
     fetchStats();
+    fetchPopularShows();
   }, []);
 
   useEffect(() => {
@@ -97,7 +139,7 @@ export default function HomePage() {
   }, [searchQuery]);
 
   const handleCheckin = async () => {
-    if (!selectedShow || !checkinSector) return;
+    if (!selectedShow || !checkinSector || !checkinDevice) return;
 
     setSubmitting(true);
     try {
@@ -105,12 +147,14 @@ export default function HomePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imdbId: selectedShow.imdbId,
+          showId: selectedShow.showId,
           title: selectedShow.title,
-          poster: selectedShow.poster,
+          poster: selectedShow.poster || null,
           type: selectedShow.type,
-          year: selectedShow.year,
+          year: selectedShow.year || null,
+          platform: selectedShow.platform || 'Various',
           sectorId: checkinSector,
+          deviceType: checkinDevice,
         }),
       });
 
@@ -122,6 +166,7 @@ export default function HomePage() {
           setSearchQuery('');
           setSearchResults([]);
           setCheckinSector('');
+          setCheckinDevice('');
           setCheckinSuccess(false);
           fetchTrending();
           fetchStats();
@@ -163,6 +208,16 @@ export default function HomePage() {
   const topShow = trending[0];
   const restShows = trending.slice(1, 6);
 
+  // Filter sectors based on search
+  const filteredSectors = sectors.filter(sector => 
+    sector.name.toLowerCase().includes(sectorSearch.toLowerCase()) ||
+    (sector.area && sector.area.toLowerCase().includes(sectorSearch.toLowerCase()))
+  );
+
+  // Group sectors by area
+  const noidaSectors = filteredSectors.filter(s => s.area === 'Noida');
+  const greaterNoidaSectors = filteredSectors.filter(s => s.area === 'Greater Noida');
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950">
       {/* Hero Section */}
@@ -173,7 +228,7 @@ export default function HomePage() {
           <div className="absolute top-40 right-10 w-96 h-96 bg-pink-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
         </div>
         
-        <div className="relative container mx-auto px-4 py-12 md:py-20">
+        <div className="relative container mx-auto px-4 py-12 md:py-16">
           <div className="text-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/20 border border-purple-500/30 mb-6">
               <Flame className="w-4 h-4 text-orange-400" />
@@ -185,7 +240,7 @@ export default function HomePage() {
               <span className="text-white">Watching?</span>
             </h1>
             <p className="text-gray-400 text-lg max-w-md mx-auto mb-8">
-              Discover what&apos;s trending in your neighborhood. Add your vibe and see real-time entertainment trends.
+              Discover what&apos;s trending in your sector. Add your vibe and see real-time entertainment trends.
             </p>
 
             {/* Stats */}
@@ -205,6 +260,24 @@ export default function HomePage() {
                 </div>
               </div>
             )}
+
+            {/* Device Stats */}
+            {trendStats?.deviceStats && (
+              <div className="flex justify-center gap-4 text-xs text-gray-500">
+                <span className="flex items-center gap-1">
+                  <Smartphone className="w-3 h-3" /> {trendStats.deviceStats.mobile || 0}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Laptop className="w-3 h-3" /> {trendStats.deviceStats.laptop || 0}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Tablet className="w-3 h-3" /> {trendStats.deviceStats.tablet || 0}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Monitor className="w-3 h-3" /> {trendStats.deviceStats.tv || 0}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -212,25 +285,53 @@ export default function HomePage() {
       {/* Filter Section */}
       <section className="container mx-auto px-4 py-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-purple-400" />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <MapPin className="w-5 h-5 text-purple-400 flex-shrink-0" />
             <Select value={selectedSector} onValueChange={setSelectedSector}>
-              <SelectTrigger className="w-[200px] bg-gray-900/50 border-gray-700 text-white">
+              <SelectTrigger className="w-full sm:w-[220px] bg-gray-900/50 border-gray-700 text-white">
                 <SelectValue placeholder="All Sectors" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-900 border-gray-700">
+              <SelectContent className="bg-gray-900 border-gray-700 max-h-[300px]">
+                <div className="p-2">
+                  <Input
+                    placeholder="Search sectors..."
+                    value={sectorSearch}
+                    onChange={(e) => setSectorSearch(e.target.value)}
+                    className="bg-gray-800 border-gray-700 text-white text-sm"
+                  />
+                </div>
                 <SelectItem value="all" className="text-white hover:bg-gray-800">All Sectors</SelectItem>
-                {sectors.map((sector) => (
-                  <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
-                    {sector.name}
-                  </SelectItem>
-                ))}
+                
+                {noidaSectors.length > 0 && (
+                  <>
+                    <div className="px-2 py-1 text-xs text-gray-500 font-medium">Noida</div>
+                    {noidaSectors.slice(0, 50).map((sector) => (
+                      <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
+                        {sector.name}
+                      </SelectItem>
+                    ))}
+                    {noidaSectors.length > 50 && (
+                      <div className="px-2 py-1 text-xs text-gray-500">+ {noidaSectors.length - 50} more (search to find)</div>
+                    )}
+                  </>
+                )}
+                
+                {greaterNoidaSectors.length > 0 && (
+                  <>
+                    <div className="px-2 py-1 text-xs text-gray-500 font-medium mt-2">Greater Noida</div>
+                    {greaterNoidaSectors.map((sector) => (
+                      <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
+                        {sector.name}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
           <Button 
             variant="outline" 
-            className="border-purple-500/50 text-purple-300 hover:bg-purple-500/20"
+            className="border-purple-500/50 text-purple-300 hover:bg-purple-500/20 w-full sm:w-auto"
             onClick={handleShare}
           >
             <Share2 className="w-4 h-4 mr-2" />
@@ -266,9 +367,16 @@ export default function HomePage() {
             {topShow && (
               <Card className="relative overflow-hidden bg-gradient-to-br from-purple-900/40 via-gray-900 to-pink-900/40 border-purple-500/30 neon-border animate-pulse-glow">
                 <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2 text-orange-400">
-                    <Flame className="w-5 h-5" />
-                    <span className="text-sm font-semibold uppercase tracking-wider">#1 Trending Now</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-orange-400">
+                      <Flame className="w-5 h-5" />
+                      <span className="text-sm font-semibold uppercase tracking-wider">#1 Trending Now</span>
+                    </div>
+                    {topShow.platform && (
+                      <span className={`px-2 py-1 text-xs rounded-full text-white ${PLATFORM_COLORS[topShow.platform] || 'bg-gray-600'}`}>
+                        {topShow.platform}
+                      </span>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -281,14 +389,14 @@ export default function HomePage() {
                       />
                     ) : (
                       <div className="w-28 h-40 bg-gray-800 rounded-lg flex items-center justify-center">
-                        {topShow.type === 'series' ? <Tv className="w-8 h-8 text-gray-600" /> : <Film className="w-8 h-8 text-gray-600" />}
+                        {topShow.type === 'series' || topShow.type === 'tv' ? <Tv className="w-8 h-8 text-gray-600" /> : <Film className="w-8 h-8 text-gray-600" />}
                       </div>
                     )}
                     <div className="flex-1">
                       <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">{topShow.title}</h2>
                       <div className="flex flex-wrap gap-2 mb-4">
                         <span className="px-2 py-1 text-xs rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                          {topShow.type === 'series' ? 'TV Series' : 'Movie'}
+                          {topShow.type === 'series' ? 'TV Series' : topShow.type === 'tv' ? 'TV Show' : 'Movie'}
                         </span>
                         {topShow.year && (
                           <span className="px-2 py-1 text-xs rounded-full bg-gray-700/50 text-gray-300">
@@ -302,6 +410,15 @@ export default function HomePage() {
                           {topShow.checkinCount} vibes
                         </span>
                       </div>
+                      {/* Device breakdown */}
+                      {topShow.devices && (
+                        <div className="flex gap-3 mt-3 text-xs text-gray-500">
+                          {topShow.devices.mobile > 0 && <span className="flex items-center gap-1"><Smartphone className="w-3 h-3" /> {topShow.devices.mobile}</span>}
+                          {topShow.devices.laptop > 0 && <span className="flex items-center gap-1"><Laptop className="w-3 h-3" /> {topShow.devices.laptop}</span>}
+                          {topShow.devices.tablet > 0 && <span className="flex items-center gap-1"><Tablet className="w-3 h-3" /> {topShow.devices.tablet}</span>}
+                          {topShow.devices.tv > 0 && <span className="flex items-center gap-1"><Monitor className="w-3 h-3" /> {topShow.devices.tv}</span>}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -317,30 +434,36 @@ export default function HomePage() {
                 </h3>
                 <div className="space-y-3">
                   {restShows.map((show, index) => (
-                    <Card key={show.imdbId} className="bg-gray-900/50 border-gray-800 hover:border-purple-500/30 transition-all">
+                    <Card key={show.showId} className="bg-gray-900/50 border-gray-800 hover:border-purple-500/30 transition-all">
                       <CardContent className="p-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center flex-shrink-0">
                             <span className="text-lg font-bold text-purple-300">#{index + 2}</span>
                           </div>
                           {show.poster ? (
                             <img
                               src={show.poster}
                               alt={show.title}
-                              className="w-12 h-16 object-cover rounded"
+                              className="w-12 h-16 object-cover rounded flex-shrink-0"
                             />
                           ) : (
-                            <div className="w-12 h-16 bg-gray-800 rounded flex items-center justify-center">
-                              {show.type === 'series' ? <Tv className="w-4 h-4 text-gray-600" /> : <Film className="w-4 h-4 text-gray-600" />}
+                            <div className="w-12 h-16 bg-gray-800 rounded flex items-center justify-center flex-shrink-0">
+                              {show.type === 'series' || show.type === 'tv' ? <Tv className="w-4 h-4 text-gray-600" /> : <Film className="w-4 h-4 text-gray-600" />}
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-white truncate">{show.title}</h4>
-                            <p className="text-sm text-gray-500">
-                              {show.type === 'series' ? 'Series' : 'Movie'} • {show.year}
-                            </p>
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <span>{show.type === 'series' ? 'Series' : show.type === 'tv' ? 'TV' : 'Movie'}</span>
+                              {show.year && <span>• {show.year}</span>}
+                              {show.platform && show.platform !== 'Various' && (
+                                <span className={`px-1.5 py-0.5 text-xs rounded text-white ${PLATFORM_COLORS[show.platform] || 'bg-gray-600'}`}>
+                                  {show.platform}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex-shrink-0">
                             <div className="text-sm font-medium text-purple-400">{show.checkinCount}</div>
                             <div className="text-xs text-gray-500">vibes</div>
                           </div>
@@ -357,7 +480,17 @@ export default function HomePage() {
 
       {/* Sticky CTA Button */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Dialog open={isModalOpen} onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) {
+            setSelectedShow(null);
+            setSearchQuery('');
+            setSearchResults([]);
+            setCheckinSector('');
+            setCheckinDevice('');
+            setCheckinSuccess(false);
+          }
+        }}>
           <DialogTrigger asChild>
             <Button 
               size="lg" 
@@ -367,7 +500,7 @@ export default function HomePage() {
               Add Your Vibe
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-gray-900 border-gray-800 max-w-md mx-auto">
+          <DialogContent className="bg-gray-900 border-gray-800 max-w-md mx-auto max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-xl text-white">Add Your Vibe</DialogTitle>
             </DialogHeader>
@@ -390,7 +523,10 @@ export default function HomePage() {
                     <Input
                       placeholder="Search shows or movies..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setSelectedShow(null);
+                      }}
                       className="pl-10 bg-gray-800 border-gray-700 text-white"
                     />
                     {searching && (
@@ -403,7 +539,7 @@ export default function HomePage() {
                     <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-gray-700 bg-gray-800">
                       {searchResults.map((result) => (
                         <button
-                          key={result.imdbId}
+                          key={result.showId}
                           onClick={() => {
                             setSelectedShow(result);
                             setSearchQuery(result.title);
@@ -411,42 +547,74 @@ export default function HomePage() {
                           }}
                           className="w-full flex items-center gap-3 p-3 hover:bg-gray-700 transition-colors text-left"
                         >
-                          {result.poster ? (
-                            <img src={result.poster} alt={result.title} className="w-10 h-14 object-cover rounded" />
-                          ) : (
-                            <div className="w-10 h-14 bg-gray-700 rounded flex items-center justify-center">
-                              {result.type === 'series' ? <Tv className="w-4 h-4 text-gray-500" /> : <Film className="w-4 h-4 text-gray-500" />}
+                          <div className="w-10 h-14 bg-gray-700 rounded flex items-center justify-center flex-shrink-0">
+                            {result.type === 'series' || result.type === 'tv' ? <Tv className="w-4 h-4 text-gray-500" /> : <Film className="w-4 h-4 text-gray-500" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-white truncate">{result.title}</div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <span>{result.type}</span>
+                              {result.platform && (
+                                <span className={`px-1.5 py-0.5 rounded text-white ${PLATFORM_COLORS[result.platform] || 'bg-gray-600'}`}>
+                                  {result.platform}
+                                </span>
+                              )}
                             </div>
-                          )}
-                          <div>
-                            <div className="font-medium text-white">{result.title}</div>
-                            <div className="text-xs text-gray-500">{result.type} • {result.year}</div>
                           </div>
                         </button>
                       ))}
                     </div>
                   )}
 
+                  {/* Popular Shows */}
+                  {!selectedShow && searchQuery.length < 2 && popularShows.length > 0 && (
+                    <div className="mt-3">
+                      <div className="text-xs text-gray-500 mb-2">Popular shows</div>
+                      <div className="flex flex-wrap gap-2">
+                        {popularShows.slice(0, 8).map((show) => (
+                          <button
+                            key={show.id}
+                            onClick={() => {
+                              setSelectedShow({
+                                showId: show.id,
+                                title: show.title,
+                                type: show.type,
+                                platform: show.platform,
+                              });
+                              setSearchQuery(show.title);
+                            }}
+                            className="px-3 py-1.5 text-sm bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-full transition-colors"
+                          >
+                            {show.title}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Selected Show */}
                   {selectedShow && (
                     <div className="mt-3 p-3 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center gap-3">
-                      {selectedShow.poster ? (
-                        <img src={selectedShow.poster} alt={selectedShow.title} className="w-12 h-16 object-cover rounded" />
-                      ) : (
-                        <div className="w-12 h-16 bg-gray-700 rounded flex items-center justify-center">
-                          {selectedShow.type === 'series' ? <Tv className="w-5 h-5 text-gray-500" /> : <Film className="w-5 h-5 text-gray-500" />}
+                      <div className="w-12 h-16 bg-gray-700 rounded flex items-center justify-center flex-shrink-0">
+                        {selectedShow.type === 'series' || selectedShow.type === 'tv' ? <Tv className="w-5 h-5 text-gray-500" /> : <Film className="w-5 h-5 text-gray-500" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-white truncate">{selectedShow.title}</div>
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                          <span>{selectedShow.type}</span>
+                          {selectedShow.platform && (
+                            <span className={`px-1.5 py-0.5 rounded text-white ${PLATFORM_COLORS[selectedShow.platform] || 'bg-gray-600'}`}>
+                              {selectedShow.platform}
+                            </span>
+                          )}
                         </div>
-                      )}
-                      <div className="flex-1">
-                        <div className="font-medium text-white">{selectedShow.title}</div>
-                        <div className="text-xs text-gray-400">{selectedShow.type} • {selectedShow.year}</div>
                       </div>
                       <button
                         onClick={() => {
                           setSelectedShow(null);
                           setSearchQuery('');
                         }}
-                        className="p-1 hover:bg-gray-700 rounded"
+                        className="p-1 hover:bg-gray-700 rounded flex-shrink-0"
                       >
                         <X className="w-4 h-4 text-gray-400" />
                       </button>
@@ -461,20 +629,63 @@ export default function HomePage() {
                     <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                       <SelectValue placeholder="Select your sector" />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-gray-700">
-                      {sectors.map((sector) => (
+                    <SelectContent className="bg-gray-900 border-gray-700 max-h-[200px]">
+                      <div className="p-2">
+                        <Input
+                          placeholder="Search sectors..."
+                          className="bg-gray-800 border-gray-700 text-white text-sm"
+                          onChange={(e) => setSectorSearch(e.target.value)}
+                        />
+                      </div>
+                      {noidaSectors.slice(0, 30).map((sector) => (
                         <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
-                          {sector.name} ({sector.pincode})
+                          {sector.name}
                         </SelectItem>
                       ))}
+                      {greaterNoidaSectors.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-xs text-gray-500 font-medium mt-2">Greater Noida</div>
+                          {greaterNoidaSectors.map((sector) => (
+                            <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
+                              {sector.name}
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Step 3: Select Device */}
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Watching on?</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { id: 'mobile', name: 'Mobile', icon: Smartphone },
+                      { id: 'laptop', name: 'Laptop', icon: Laptop },
+                      { id: 'tablet', name: 'Tablet', icon: Tablet },
+                      { id: 'tv', name: 'TV', icon: Monitor },
+                    ].map((device) => (
+                      <button
+                        key={device.id}
+                        onClick={() => setCheckinDevice(device.id)}
+                        className={`p-3 rounded-lg border flex flex-col items-center gap-1 transition-all ${
+                          checkinDevice === device.id
+                            ? 'border-purple-500 bg-purple-500/20 text-purple-300'
+                            : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600'
+                        }`}
+                      >
+                        <device.icon className="w-5 h-5" />
+                        <span className="text-xs">{device.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Submit Button */}
                 <Button
                   onClick={handleCheckin}
-                  disabled={!selectedShow || !checkinSector || submitting}
+                  disabled={!selectedShow || !checkinSector || !checkinDevice || submitting}
                   className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white"
                 >
                   {submitting ? (

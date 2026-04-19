@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 NoidaPulse Backend API Testing Suite
-Tests all backend APIs for the NoidaPulse application
+Tests all enhanced backend APIs with comprehensive validation
 """
 
 import requests
