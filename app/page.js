@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Flame, TrendingUp, MapPin, Plus, Search, Share2, Tv, Film, X, Loader2, CheckCircle2, Smartphone, Laptop, Tablet, Monitor } from 'lucide-react';
+import { Flame, TrendingUp, MapPin, Plus, Search, Share2, Tv, Film, X, Loader2, CheckCircle2, Smartphone, Laptop, Tablet, Monitor, Calendar, Clock } from 'lucide-react';
 
 // Platform colors
 const PLATFORM_COLORS = {
@@ -32,10 +32,36 @@ const DeviceIcon = ({ type, className = "w-4 h-4" }) => {
   }
 };
 
+// Time range options
+const TIME_RANGES = [
+  { id: 'today', name: 'Today' },
+  { id: 'week', name: 'This Week' },
+  { id: 'month', name: 'This Month' },
+  { id: 'all', name: 'All Time' },
+];
+
+// Format relative time
+const formatRelativeTime = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+};
+
 export default function HomePage() {
   const [trending, setTrending] = useState([]);
   const [sectors, setSectors] = useState([]);
   const [selectedSector, setSelectedSector] = useState('all');
+  const [selectedTimeRange, setSelectedTimeRange] = useState('week');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [trendStats, setTrendStats] = useState(null);
@@ -62,9 +88,17 @@ export default function HomePage() {
   const fetchTrending = useCallback(async () => {
     setLoading(true);
     try {
-      const url = selectedSector && selectedSector !== 'all'
-        ? `/api/trending?sector=${selectedSector}`
-        : '/api/trending';
+      let url = '/api/trending?';
+      const params = new URLSearchParams();
+      
+      if (selectedSector && selectedSector !== 'all') {
+        params.append('sector', selectedSector);
+      }
+      if (selectedTimeRange && selectedTimeRange !== 'all') {
+        params.append('range', selectedTimeRange);
+      }
+      
+      url += params.toString();
       const response = await fetch(url);
       const data = await response.json();
       setTrending(data.trending || []);
@@ -74,7 +108,7 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedSector]);
+  }, [selectedSector, selectedTimeRange]);
 
   const fetchSectors = async () => {
     try {
@@ -147,8 +181,7 @@ export default function HomePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          showId: selectedShow.showId,
-          title: selectedShow.title,
+          title: selectedShow.title, // Title is required, LLM will normalize it
           poster: selectedShow.poster || null,
           type: selectedShow.type,
           year: selectedShow.year || null,
@@ -285,49 +318,69 @@ export default function HomePage() {
       {/* Filter Section */}
       <section className="container mx-auto px-4 py-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <MapPin className="w-5 h-5 text-purple-400 flex-shrink-0" />
-            <Select value={selectedSector} onValueChange={setSelectedSector}>
-              <SelectTrigger className="w-full sm:w-[220px] bg-gray-900/50 border-gray-700 text-white">
-                <SelectValue placeholder="All Sectors" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-900 border-gray-700 max-h-[300px]">
-                <div className="p-2">
-                  <Input
-                    placeholder="Search sectors..."
-                    value={sectorSearch}
-                    onChange={(e) => setSectorSearch(e.target.value)}
-                    className="bg-gray-800 border-gray-700 text-white text-sm"
-                  />
-                </div>
-                <SelectItem value="all" className="text-white hover:bg-gray-800">All Sectors</SelectItem>
-                
-                {noidaSectors.length > 0 && (
-                  <>
-                    <div className="px-2 py-1 text-xs text-gray-500 font-medium">Noida</div>
-                    {noidaSectors.slice(0, 50).map((sector) => (
-                      <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
-                        {sector.name}
-                      </SelectItem>
-                    ))}
-                    {noidaSectors.length > 50 && (
-                      <div className="px-2 py-1 text-xs text-gray-500">+ {noidaSectors.length - 50} more (search to find)</div>
-                    )}
-                  </>
-                )}
-                
-                {greaterNoidaSectors.length > 0 && (
-                  <>
-                    <div className="px-2 py-1 text-xs text-gray-500 font-medium mt-2">Greater Noida</div>
-                    {greaterNoidaSectors.map((sector) => (
-                      <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
-                        {sector.name}
-                      </SelectItem>
-                    ))}
-                  </>
-                )}
-              </SelectContent>
-            </Select>
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            {/* Sector Filter */}
+            <div className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-purple-400 flex-shrink-0" />
+              <Select value={selectedSector} onValueChange={setSelectedSector}>
+                <SelectTrigger className="w-[160px] sm:w-[180px] bg-gray-900/50 border-gray-700 text-white">
+                  <SelectValue placeholder="All Sectors" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-gray-700 max-h-[300px]">
+                  <div className="p-2">
+                    <Input
+                      placeholder="Search sectors..."
+                      value={sectorSearch}
+                      onChange={(e) => setSectorSearch(e.target.value)}
+                      className="bg-gray-800 border-gray-700 text-white text-sm"
+                    />
+                  </div>
+                  <SelectItem value="all" className="text-white hover:bg-gray-800">All Sectors</SelectItem>
+                  
+                  {noidaSectors.length > 0 && (
+                    <>
+                      <div className="px-2 py-1 text-xs text-gray-500 font-medium">Noida</div>
+                      {noidaSectors.slice(0, 50).map((sector) => (
+                        <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
+                          {sector.name}
+                        </SelectItem>
+                      ))}
+                      {noidaSectors.length > 50 && (
+                        <div className="px-2 py-1 text-xs text-gray-500">+ {noidaSectors.length - 50} more (search to find)</div>
+                      )}
+                    </>
+                  )}
+                  
+                  {greaterNoidaSectors.length > 0 && (
+                    <>
+                      <div className="px-2 py-1 text-xs text-gray-500 font-medium mt-2">Greater Noida</div>
+                      {greaterNoidaSectors.map((sector) => (
+                        <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
+                          {sector.name}
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Time Range Filter */}
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-pink-400 flex-shrink-0" />
+              <Select value={selectedTimeRange} onValueChange={setSelectedTimeRange}>
+                <SelectTrigger className="w-[130px] bg-gray-900/50 border-gray-700 text-white">
+                  <SelectValue placeholder="This Week" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-gray-700">
+                  {TIME_RANGES.map((range) => (
+                    <SelectItem key={range.id} value={range.id} className="text-white hover:bg-gray-800">
+                      {range.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <Button 
             variant="outline" 
@@ -409,6 +462,12 @@ export default function HomePage() {
                           <TrendingUp className="w-4 h-4 text-green-400" />
                           {topShow.checkinCount} vibes
                         </span>
+                        {topShow.lastWatched && (
+                          <span className="flex items-center gap-1 text-xs text-gray-500">
+                            <Clock className="w-3 h-3" />
+                            {formatRelativeTime(topShow.lastWatched)}
+                          </span>
+                        )}
                       </div>
                       {/* Device breakdown */}
                       {topShow.devices && (

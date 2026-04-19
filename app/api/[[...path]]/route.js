@@ -24,6 +24,122 @@ async function connectToDatabase() {
   return { client, db };
 }
 
+// Calculate Levenshtein distance for fuzzy matching
+function levenshteinDistance(str1, str2) {
+  const m = str1.length;
+  const n = str2.length;
+  const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+      }
+    }
+  }
+  return dp[m][n];
+}
+
+// Normalize show title using fuzzy matching against local DB and common variations
+function normalizeShowTitle(userInput, localShows) {
+  const input = userInput.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '');
+  
+  // Common spelling variations map
+  const variations = {
+    'mirjapur': 'Mirzapur',
+    'mirzpur': 'Mirzapur',
+    'mirza pur': 'Mirzapur',
+    'panchyat': 'Panchayat',
+    'panchayaat': 'Panchayat',
+    'panchait': 'Panchayat',
+    'scam1992': 'Scam 1992',
+    'scam 92': 'Scam 1992',
+    'scam92': 'Scam 1992',
+    'sacredgames': 'Sacred Games',
+    'sacred game': 'Sacred Games',
+    'familyman': 'The Family Man',
+    'family men': 'The Family Man',
+    'the familyman': 'The Family Man',
+    'asur': 'Asur',
+    'assur': 'Asur',
+    'farzi': 'Farzi',
+    'farzy': 'Farzi',
+    'delhi crime': 'Delhi Crime',
+    'delhicrime': 'Delhi Crime',
+    'kota factory': 'Kota Factory',
+    'kotafactory': 'Kota Factory',
+    'paatal lok': 'Paatal Lok',
+    'patal lok': 'Paatal Lok',
+    'patallok': 'Paatal Lok',
+    'breathe into shadows': 'Breathe Into the Shadows',
+    '3idiots': '3 Idiots',
+    'three idiots': '3 Idiots',
+    'dangal': 'Dangal',
+    'pk': 'PK',
+    'strangerthings': 'Stranger Things',
+    'stranger thing': 'Stranger Things',
+    'money heist': 'Money Heist',
+    'moneyheist': 'Money Heist',
+    'breakingbad': 'Breaking Bad',
+    'gameofthrones': 'Game of Thrones',
+    'game of throne': 'Game of Thrones',
+  };
+  
+  // Check exact match in variations
+  if (variations[input]) {
+    return variations[input];
+  }
+  
+  // Check fuzzy match against local shows
+  let bestMatch = null;
+  let bestDistance = Infinity;
+  const threshold = Math.max(3, Math.floor(input.length * 0.3)); // Allow 30% character difference
+  
+  for (const show of localShows) {
+    const showTitle = show.title.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+    const distance = levenshteinDistance(input, showTitle);
+    
+    if (distance < bestDistance && distance <= threshold) {
+      bestDistance = distance;
+      bestMatch = show.title;
+    }
+  }
+  
+  if (bestMatch) {
+    return bestMatch;
+  }
+  
+  // Fallback: Title case the input
+  return userInput.split(' ').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  ).join(' ');
+}
+
+// Fetch poster from OMDb for a show title
+async function fetchPosterFromOMDb(title) {
+  try {
+    const response = await fetch(
+      `http://www.omdbapi.com/?apikey=${OMDB_API_KEY}&t=${encodeURIComponent(title)}`
+    );
+    const data = await response.json();
+    if (data.Response === 'True' && data.Poster && data.Poster !== 'N/A') {
+      return {
+        poster: data.Poster,
+        year: data.Year,
+        imdbId: data.imdbID,
+      };
+    }
+  } catch (error) {
+    console.error('OMDb poster fetch error:', error);
+  }
+  return null;
+}
+
 // Generate actual Noida sectors (1-135 + Greater Noida)
 const NOIDA_SECTORS = [
   ...Array.from({ length: 135 }, (_, i) => ({
@@ -322,18 +438,44 @@ async function handleRequest(request, context) {
       return NextResponse.json({ shows }, { headers });
     }
 
-    // Get trending shows
+    // Get trending shows - with date range filter and deduplication by normalizedTitle
     if (path === '/trending' && method === 'GET') {
       const { searchParams } = new URL(request.url);
       const sector = searchParams.get('sector');
       const deviceType = searchParams.get('device');
+      const dateFrom = searchParams.get('from'); // ISO date string
+      const dateTo = searchParams.get('to'); // ISO date string
+      const timeRange = searchParams.get('range'); // 'today', 'week', 'month', 'all'
 
       const { db } = await connectToDatabase();
       const checkinsCollection = db.collection('checkins');
 
-      // Get checkins from last 7 days
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const query = { createdAt: { $gte: sevenDaysAgo } };
+      // Build date query
+      let dateQuery = {};
+      if (timeRange === 'today') {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        dateQuery = { $gte: todayStart };
+      } else if (timeRange === 'week') {
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        dateQuery = { $gte: weekAgo };
+      } else if (timeRange === 'month') {
+        const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        dateQuery = { $gte: monthAgo };
+      } else if (dateFrom || dateTo) {
+        if (dateFrom) dateQuery.$gte = new Date(dateFrom);
+        if (dateTo) {
+          const toDate = new Date(dateTo);
+          toDate.setHours(23, 59, 59, 999);
+          dateQuery.$lte = toDate;
+        }
+      } else {
+        // Default to last 7 days
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        dateQuery = { $gte: sevenDaysAgo };
+      }
+
+      const query = { createdAt: dateQuery };
       if (sector && sector !== 'all') {
         query.sectorId = sector;
       }
@@ -343,27 +485,42 @@ async function handleRequest(request, context) {
 
       const checkins = await checkinsCollection.find(query).toArray();
 
-      // Group by show
+      // Group by normalizedTitle (to merge same shows with different spellings)
       const showMap = new Map();
       const deviceStats = { mobile: 0, laptop: 0, tablet: 0, tv: 0 };
       const platformStats = {};
       
       checkins.forEach((checkin) => {
-        const key = checkin.showId || checkin.imdbId;
+        // Use normalizedTitle as key to merge duplicates
+        const key = checkin.normalizedTitle || (checkin.title ? checkin.title.toLowerCase() : checkin.showId);
+        
         if (!showMap.has(key)) {
           showMap.set(key, {
-            showId: key,
-            title: checkin.title,
+            showId: checkin.showId || key,
+            normalizedTitle: key,
+            title: checkin.displayTitle || checkin.title,
             poster: checkin.poster,
             type: checkin.type,
             year: checkin.year,
             platform: checkin.platform || 'Various',
+            imdbId: checkin.imdbId,
             checkins: [],
             devices: { mobile: 0, laptop: 0, tablet: 0, tv: 0 },
+            lastWatched: checkin.createdAt,
           });
         }
         const show = showMap.get(key);
         show.checkins.push(checkin);
+        
+        // Update poster if this checkin has one and existing doesn't
+        if (!show.poster && checkin.poster) {
+          show.poster = checkin.poster;
+        }
+        
+        // Track latest watch time
+        if (new Date(checkin.createdAt) > new Date(show.lastWatched)) {
+          show.lastWatched = checkin.createdAt;
+        }
         
         // Track device stats
         if (checkin.deviceType && deviceStats[checkin.deviceType] !== undefined) {
@@ -388,24 +545,26 @@ async function handleRequest(request, context) {
           score: calculateTrendScore(show.checkins),
           checkinCount: show.checkins.length,
           devices: show.devices,
+          lastWatched: show.lastWatched,
         }))
         .sort((a, b) => b.score - a.score)
         .slice(0, 10);
 
       return NextResponse.json({ 
         trending, 
-        stats: { deviceStats, platformStats }
+        stats: { deviceStats, platformStats },
+        filters: { sector, deviceType, timeRange, dateFrom, dateTo }
       }, { headers });
     }
 
-    // Create check-in
+    // Create check-in with fuzzy matching normalization and poster fetching
     if (path === '/checkin' && method === 'POST') {
       const body = await request.json();
-      const { showId, title, poster, type, year, sectorId, deviceType, platform } = body;
+      let { showId, title, poster, type, year, sectorId, deviceType, platform } = body;
 
-      if (!showId || !title || !sectorId || !deviceType) {
+      if (!title || !sectorId || !deviceType) {
         return NextResponse.json(
-          { error: 'Missing required fields: showId, title, sectorId, deviceType' },
+          { error: 'Missing required fields: title, sectorId, deviceType' },
           { status: 400, headers }
         );
       }
@@ -428,26 +587,79 @@ async function handleRequest(request, context) {
 
       const { db } = await connectToDatabase();
       const checkinsCollection = db.collection('checkins');
+      const showsCollection = db.collection('shows');
 
+      // Normalize title using fuzzy matching
+      const normalizedTitle = normalizeShowTitle(title, LOCAL_SHOWS);
+      
+      // Check if show already exists in our shows collection
+      let existingShow = await showsCollection.findOne({ 
+        normalizedTitle: normalizedTitle.toLowerCase() 
+      });
+
+      // If not exists, try to find in local DB or fetch from OMDb
+      if (!existingShow) {
+        // Check local DB
+        const localShow = LOCAL_SHOWS.find(s => 
+          s.title.toLowerCase() === normalizedTitle.toLowerCase()
+        );
+
+        let showData = {
+          id: uuidv4(),
+          normalizedTitle: normalizedTitle.toLowerCase(),
+          displayTitle: normalizedTitle,
+          type: type || (localShow?.type) || 'unknown',
+          platform: platform || (localShow?.platform) || 'Various',
+          poster: poster || null,
+          year: year || null,
+          imdbId: null,
+          createdAt: new Date(),
+        };
+
+        // Fetch poster from OMDb if not provided
+        if (!showData.poster) {
+          const omdbData = await fetchPosterFromOMDb(normalizedTitle);
+          if (omdbData) {
+            showData.poster = omdbData.poster;
+            showData.year = showData.year || omdbData.year;
+            showData.imdbId = omdbData.imdbId;
+          }
+        }
+
+        await showsCollection.insertOne(showData);
+        existingShow = showData;
+      }
+
+      // Create the checkin
       const checkin = {
         id: uuidv4(),
-        showId,
-        title,
-        poster: poster || null,
-        type: type || 'unknown',
-        year: year || null,
-        platform: platform || 'Various',
+        showId: existingShow.id,
+        normalizedTitle: existingShow.normalizedTitle,
+        displayTitle: existingShow.displayTitle,
+        poster: existingShow.poster,
+        type: existingShow.type,
+        year: existingShow.year,
+        platform: existingShow.platform,
+        imdbId: existingShow.imdbId,
         sectorId,
         sectorName: sector.name,
         sectorArea: sector.area,
         deviceType,
         deviceName: device.name,
         createdAt: new Date(),
+        // Add readable time info
+        watchedAt: new Date().toISOString(),
+        watchedDate: new Date().toLocaleDateString('en-IN'),
+        watchedTime: new Date().toLocaleTimeString('en-IN'),
       };
 
       await checkinsCollection.insertOne(checkin);
 
-      return NextResponse.json({ success: true, checkin }, { status: 201, headers });
+      return NextResponse.json({ 
+        success: true, 
+        checkin,
+        normalized: title !== normalizedTitle ? { original: title, normalized: normalizedTitle } : null
+      }, { status: 201, headers });
     }
 
     // Get stats
