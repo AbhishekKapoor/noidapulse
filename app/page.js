@@ -843,23 +843,29 @@ export default function HomePage() {
                 {/* Step 2: Select Sector */}
                 <div>
                   <label className="text-sm font-medium text-gray-300 mb-2 block">Where in Noida?</label>
+                  
+                  {/* Search input - OUTSIDE dropdown for mobile compatibility */}
+                  <Input
+                    placeholder="🔍 Search sectors (e.g., 62, 18, Alpha)..."
+                    className="bg-gray-800 border-gray-700 text-white text-sm mb-2"
+                    value={sectorSearch}
+                    onChange={(e) => setSectorSearch(e.target.value)}
+                  />
+                  
                   <Select value={checkinSector} onValueChange={setCheckinSector}>
                     <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                       <SelectValue placeholder="Select your sector" />
                     </SelectTrigger>
                     <SelectContent className="bg-gray-900 border-gray-700 max-h-[200px]">
-                      <div className="p-2">
-                        <Input
-                          placeholder="Search sectors..."
-                          className="bg-gray-800 border-gray-700 text-white text-sm"
-                          onChange={(e) => setSectorSearch(e.target.value)}
-                        />
-                      </div>
-                      {noidaSectors.slice(0, 30).map((sector) => (
-                        <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
-                          {sector.name}
-                        </SelectItem>
-                      ))}
+                      {noidaSectors.length > 0 ? (
+                        <>
+                          {noidaSectors.map((sector) => (
+                            <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
+                              {sector.name}
+                            </SelectItem>
+                          ))}
+                        </>
+                      ) : null}
                       {greaterNoidaSectors.length > 0 && (
                         <>
                           <div className="px-2 py-1 text-xs text-gray-500 font-medium mt-2">Greater Noida</div>
@@ -869,6 +875,11 @@ export default function HomePage() {
                             </SelectItem>
                           ))}
                         </>
+                      )}
+                      {noidaSectors.length === 0 && greaterNoidaSectors.length === 0 && (
+                        <div className="px-2 py-3 text-sm text-gray-500 text-center">
+                          No sectors found
+                        </div>
                       )}
                     </SelectContent>
                   </Select>
