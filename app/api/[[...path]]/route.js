@@ -964,7 +964,9 @@ async function handleRequest(request, context) {
       
       checkins.forEach((checkin) => {
         // Use normalizedTitle as key to merge duplicates
-        const key = checkin.normalizedTitle || (checkin.title ? checkin.title.toLowerCase() : checkin.showId);
+        // ALWAYS lowercase and trim to ensure consistent grouping
+        let key = checkin.normalizedTitle || checkin.title || checkin.showId;
+        key = key.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '');
         
         if (!showMap.has(key)) {
           showMap.set(key, {
@@ -1230,6 +1232,67 @@ async function handleRequest(request, context) {
         },
         { headers }
       );
+    }
+
+    // Admin endpoint: Clean up duplicate shows in database
+    if (path === '/admin/cleanup-duplicates' && method === 'POST') {
+      const { db } = await connectToDatabase();
+      const checkinsCollection = db.collection('checkins');
+      const showsCollection = db.collection('shows');
+
+      // Get all check-ins
+      const allCheckins = await checkinsCollection.find({}).toArray();
+      
+      // Group by normalized title to find duplicates
+      const titleGroups = new Map();
+      allCheckins.forEach(checkin => {
+        let normalized = checkin.normalizedTitle || checkin.title || '';
+        normalized = normalized.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '');
+        
+        if (!titleGroups.has(normalized)) {
+          titleGroups.set(normalized, []);
+        }
+        titleGroups.get(normalized).push(checkin);
+      });
+
+      let updatedCount = 0;
+      let mergedTitles = [];
+
+      // Update all check-ins to use consistent normalized title
+      for (const [normalized, checkins] of titleGroups.entries()) {
+        if (checkins.length > 1) {
+          // Find the best display title (prefer one with proper capitalization)
+          const bestTitle = checkins.find(c => c.displayTitle) || checkins[0];
+          const displayTitle = bestTitle.displayTitle || bestTitle.title;
+          
+          // Update all check-ins in this group
+          for (const checkin of checkins) {
+            await checkinsCollection.updateOne(
+              { _id: checkin._id },
+              { 
+                $set: { 
+                  normalizedTitle: normalized,
+                  displayTitle: displayTitle
+                } 
+              }
+            );
+            updatedCount++;
+          }
+          
+          mergedTitles.push({
+            normalized,
+            count: checkins.length,
+            displayTitle
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Cleaned up ${updatedCount} check-ins`,
+        mergedShows: mergedTitles.length,
+        details: mergedTitles
+      }, { headers });
     }
 
     // 404 for unknown routes
