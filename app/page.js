@@ -129,6 +129,7 @@ export default function HomePage() {
 
   // Sector search
   const [sectorSearch, setSectorSearch] = useState('');
+  const [dashboardSectorDropdownOpen, setDashboardSectorDropdownOpen] = useState(false);
 
   const fetchTrending = useCallback(async () => {
     setLoading(true);
@@ -379,50 +380,109 @@ export default function HomePage() {
       <section className="container mx-auto px-4 py-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            {/* Sector Filter */}
-            <div className="flex items-center gap-2">
+            {/* Sector Filter - Mobile-friendly autocomplete */}
+            <div className="flex items-center gap-2 relative">
               <MapPin className="w-5 h-5 text-purple-400 flex-shrink-0" />
-              <Select value={selectedSector} onValueChange={setSelectedSector}>
-                <SelectTrigger className="w-[160px] sm:w-[180px] bg-gray-900/50 border-gray-700 text-white">
-                  <SelectValue placeholder="All Sectors" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-gray-700 max-h-[300px]">
-                  <div className="p-2">
-                    <Input
-                      placeholder="Search sectors..."
-                      value={sectorSearch}
-                      onChange={(e) => setSectorSearch(e.target.value)}
-                      className="bg-gray-800 border-gray-700 text-white text-sm"
+              <div className="relative w-[160px] sm:w-[180px]">
+                <Input
+                  placeholder={selectedSector === 'all' ? '🔍 All Sectors' : sectors.find(s => s.id === selectedSector)?.name || 'Search...'}
+                  className="bg-gray-900/50 border-gray-700 text-white text-sm pr-8"
+                  value={sectorSearch}
+                  onChange={(e) => {
+                    setSectorSearch(e.target.value);
+                    setDashboardSectorDropdownOpen(true);
+                  }}
+                  onFocus={() => setDashboardSectorDropdownOpen(true)}
+                />
+                
+                {/* Clear/Show dropdown button */}
+                {selectedSector !== 'all' && !sectorSearch && (
+                  <button
+                    onClick={() => {
+                      setSelectedSector('all');
+                      setSectorSearch('');
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+                
+                {/* Autocomplete dropdown */}
+                {dashboardSectorDropdownOpen && (
+                  <>
+                    {/* Backdrop to close dropdown */}
+                    <div 
+                      className="fixed inset-0 z-[100]" 
+                      onClick={() => {
+                        setDashboardSectorDropdownOpen(false);
+                        setSectorSearch('');
+                      }}
                     />
-                  </div>
-                  <SelectItem value="all" className="text-white hover:bg-gray-800">All Sectors</SelectItem>
-                  
-                  {noidaSectors.length > 0 && (
-                    <>
-                      <div className="px-2 py-1 text-xs text-gray-500 font-medium">Noida</div>
-                      {noidaSectors.slice(0, 50).map((sector) => (
-                        <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
-                          {sector.name}
-                        </SelectItem>
-                      ))}
-                      {noidaSectors.length > 50 && (
-                        <div className="px-2 py-1 text-xs text-gray-500">+ {noidaSectors.length - 50} more (search to find)</div>
+                    
+                    {/* Dropdown menu */}
+                    <div className="absolute z-[101] w-full mt-1 max-h-[300px] overflow-y-auto bg-gray-900 border border-gray-700 rounded-lg shadow-lg">
+                      <button
+                        onClick={() => {
+                          setSelectedSector('all');
+                          setSectorSearch('');
+                          setDashboardSectorDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-800 transition-colors border-b border-gray-800"
+                      >
+                        All Sectors
+                      </button>
+                      
+                      {noidaSectors.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-xs text-gray-500 font-medium sticky top-0 bg-gray-900">Noida</div>
+                          {noidaSectors.slice(0, 50).map((sector) => (
+                            <button
+                              key={sector.id}
+                              onClick={() => {
+                                setSelectedSector(sector.id);
+                                setSectorSearch('');
+                                setDashboardSectorDropdownOpen(false);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-800 transition-colors"
+                            >
+                              {sector.name}
+                            </button>
+                          ))}
+                          {noidaSectors.length > 50 && (
+                            <div className="px-2 py-1 text-xs text-gray-500">+ {noidaSectors.length - 50} more (search to find)</div>
+                          )}
+                        </>
                       )}
-                    </>
-                  )}
-                  
-                  {greaterNoidaSectors.length > 0 && (
-                    <>
-                      <div className="px-2 py-1 text-xs text-gray-500 font-medium mt-2">Greater Noida</div>
-                      {greaterNoidaSectors.map((sector) => (
-                        <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
-                          {sector.name}
-                        </SelectItem>
-                      ))}
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
+                      
+                      {greaterNoidaSectors.length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-xs text-gray-500 font-medium sticky top-0 bg-gray-900 mt-2">Greater Noida</div>
+                          {greaterNoidaSectors.map((sector) => (
+                            <button
+                              key={sector.id}
+                              onClick={() => {
+                                setSelectedSector(sector.id);
+                                setSectorSearch('');
+                                setDashboardSectorDropdownOpen(false);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-800 transition-colors"
+                            >
+                              {sector.name}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                      
+                      {noidaSectors.length === 0 && greaterNoidaSectors.length === 0 && (
+                        <div className="px-3 py-3 text-sm text-gray-500 text-center">
+                          No sectors found
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Time Range Filter */}
