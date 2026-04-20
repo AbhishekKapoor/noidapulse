@@ -840,49 +840,85 @@ export default function HomePage() {
                   )}
                 </div>
 
-                {/* Step 2: Select Sector */}
+                {/* Step 2: Select Sector - Mobile-friendly autocomplete */}
                 <div>
                   <label className="text-sm font-medium text-gray-300 mb-2 block">Where in Noida?</label>
                   
-                  {/* Search input - OUTSIDE dropdown for mobile compatibility */}
-                  <Input
-                    placeholder="🔍 Search sectors (e.g., 62, 18, Alpha)..."
-                    className="bg-gray-800 border-gray-700 text-white text-sm mb-2"
-                    value={sectorSearch}
-                    onChange={(e) => setSectorSearch(e.target.value)}
-                  />
-                  
-                  <Select value={checkinSector} onValueChange={setCheckinSector}>
-                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                      <SelectValue placeholder="Select your sector" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-gray-700 max-h-[200px]">
-                      {noidaSectors.length > 0 ? (
-                        <>
-                          {noidaSectors.map((sector) => (
-                            <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
-                              {sector.name}
-                            </SelectItem>
-                          ))}
-                        </>
-                      ) : null}
-                      {greaterNoidaSectors.length > 0 && (
-                        <>
-                          <div className="px-2 py-1 text-xs text-gray-500 font-medium mt-2">Greater Noida</div>
-                          {greaterNoidaSectors.map((sector) => (
-                            <SelectItem key={sector.id} value={sector.id} className="text-white hover:bg-gray-800">
-                              {sector.name}
-                            </SelectItem>
-                          ))}
-                        </>
-                      )}
-                      {noidaSectors.length === 0 && greaterNoidaSectors.length === 0 && (
-                        <div className="px-2 py-3 text-sm text-gray-500 text-center">
-                          No sectors found
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <div className="relative">
+                    <Input
+                      placeholder="🔍 Type to search sectors (e.g., 62, 18, Alpha)..."
+                      className="bg-gray-800 border-gray-700 text-white text-sm"
+                      value={sectorSearch}
+                      onChange={(e) => setSectorSearch(e.target.value)}
+                      onFocus={() => {
+                        // Show dropdown when focused
+                        if (!sectorSearch) setSectorSearch('');
+                      }}
+                    />
+                    
+                    {/* Selected sector display */}
+                    {checkinSector && !sectorSearch && (
+                      <div className="mt-2 p-2 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-between">
+                        <span className="text-sm text-white">
+                          {sectors.find(s => s.id === checkinSector)?.name || checkinSector}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setCheckinSector('');
+                            setSectorSearch('');
+                          }}
+                          className="text-gray-400 hover:text-white"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Autocomplete dropdown list */}
+                    {sectorSearch !== null && (sectorSearch.length > 0 || !checkinSector) && (
+                      <div className="absolute z-[10000] w-full mt-1 max-h-[200px] overflow-y-auto bg-gray-900 border border-gray-700 rounded-lg shadow-lg">
+                        {noidaSectors.length > 0 && (
+                          <>
+                            <div className="px-2 py-1 text-xs text-gray-500 font-medium sticky top-0 bg-gray-900">Noida</div>
+                            {noidaSectors.map((sector) => (
+                              <button
+                                key={sector.id}
+                                onClick={() => {
+                                  setCheckinSector(sector.id);
+                                  setSectorSearch('');
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-800 transition-colors"
+                              >
+                                {sector.name}
+                              </button>
+                            ))}
+                          </>
+                        )}
+                        {greaterNoidaSectors.length > 0 && (
+                          <>
+                            <div className="px-2 py-1 text-xs text-gray-500 font-medium sticky top-0 bg-gray-900 mt-2">Greater Noida</div>
+                            {greaterNoidaSectors.map((sector) => (
+                              <button
+                                key={sector.id}
+                                onClick={() => {
+                                  setCheckinSector(sector.id);
+                                  setSectorSearch('');
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm text-white hover:bg-gray-800 transition-colors"
+                              >
+                                {sector.name}
+                              </button>
+                            ))}
+                          </>
+                        )}
+                        {noidaSectors.length === 0 && greaterNoidaSectors.length === 0 && (
+                          <div className="px-3 py-3 text-sm text-gray-500 text-center">
+                            No sectors found
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Step 3: Select Device */}
