@@ -121,3 +121,30 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(168, 85, 247, 0.8);
 }
+
+/* Mobile touch optimizations */
+@layer utilities {
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Ensure select dropdowns work on mobile */
+@media (hover: none) and (pointer: coarse) {
+  select, button, [role="button"], [role="combobox"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Prevent double-tap zoom on form controls */
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
+
+/* Fix for radix-ui portals on mobile */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
