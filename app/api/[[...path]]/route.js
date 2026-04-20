@@ -213,6 +213,9 @@ function normalizeShowTitle(userInput, localShows) {
     'bambai meri jaan': 'Bambai Meri Jaan',
     'poacher': 'Poacher',
     'railway men': 'The Railway Men',
+    'aajkat news': 'Aajtak News',
+    'ajtak news': 'Aajtak News',
+    'aaj tak': 'Aajtak News',
   };
   
   // Check exact match in variations
@@ -1234,44 +1237,49 @@ async function handleRequest(request, context) {
       );
     }
 
-    // Admin endpoint: Clean up duplicate shows in database
+    // Admin endpoint: Clean up duplicate shows in database with fuzzy matching
     if (path === '/admin/cleanup-duplicates' && method === 'POST') {
       const { db } = await connectToDatabase();
       const checkinsCollection = db.collection('checkins');
-      const showsCollection = db.collection('shows');
 
       // Get all check-ins
       const allCheckins = await checkinsCollection.find({}).toArray();
       
-      // Group by normalized title to find duplicates
+      // Group by normalized title using the same normalization logic as check-in
       const titleGroups = new Map();
       allCheckins.forEach(checkin => {
-        let normalized = checkin.normalizedTitle || checkin.title || '';
-        normalized = normalized.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '');
+        const originalTitle = checkin.title || checkin.displayTitle || '';
         
-        if (!titleGroups.has(normalized)) {
-          titleGroups.set(normalized, []);
+        // Use the same normalization function to ensure consistency
+        const normalized = normalizeShowTitle(originalTitle, LOCAL_SHOWS);
+        const normalizedKey = normalized.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '');
+        
+        if (!titleGroups.has(normalizedKey)) {
+          titleGroups.set(normalizedKey, {
+            normalizedTitle: normalizedKey,
+            displayTitle: normalized,
+            checkins: []
+          });
         }
-        titleGroups.get(normalized).push(checkin);
+        titleGroups.get(normalizedKey).checkins.push(checkin);
       });
 
       let updatedCount = 0;
       let mergedTitles = [];
 
       // Update all check-ins to use consistent normalized title
-      for (const [normalized, checkins] of titleGroups.entries()) {
-        if (checkins.length > 1) {
-          // Find the best display title (prefer one with proper capitalization)
-          const bestTitle = checkins.find(c => c.displayTitle) || checkins[0];
-          const displayTitle = bestTitle.displayTitle || bestTitle.title;
+      for (const [normalizedKey, group] of titleGroups.entries()) {
+        if (group.checkins.length >= 1) {
+          // Use the normalized display title
+          const displayTitle = group.displayTitle;
           
           // Update all check-ins in this group
-          for (const checkin of checkins) {
+          for (const checkin of group.checkins) {
             await checkinsCollection.updateOne(
               { _id: checkin._id },
               { 
                 $set: { 
-                  normalizedTitle: normalized,
+                  normalizedTitle: normalizedKey,
                   displayTitle: displayTitle
                 } 
               }
@@ -1279,11 +1287,13 @@ async function handleRequest(request, context) {
             updatedCount++;
           }
           
-          mergedTitles.push({
-            normalized,
-            count: checkins.length,
-            displayTitle
-          });
+          if (group.checkins.length > 1) {
+            mergedTitles.push({
+              normalized: normalizedKey,
+              count: group.checkins.length,
+              displayTitle
+            });
+          }
         }
       }
 
